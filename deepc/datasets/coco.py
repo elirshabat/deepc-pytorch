@@ -7,6 +7,10 @@ import matplotlib.pyplot as plt
 
 
 def show_sample(sample):
+    """
+    Show the given sample.
+    :param sample: sample from the CocoDataset
+    """
     plt.figure()
     plt.imshow(sample['image'])
     plt.imshow(sample['labels'], alpha=0.5)
