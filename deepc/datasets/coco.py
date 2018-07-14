@@ -4,16 +4,20 @@ import numpy as np
 import os.path
 import PIL.Image
 import matplotlib.pyplot as plt
+import torch
+from augmentations.resize import Resize
 
 
-def show_sample(sample):
+def show_sample(sample, ignore_image=False, ignore_labels=False):
     """
     Show the given sample.
     :param sample: sample from the CocoDataset
     """
     plt.figure()
-    plt.imshow(sample['image'])
-    plt.imshow(sample['labels'], alpha=0.5)
+    if not ignore_image:
+        plt.imshow(sample['image'].numpy())
+    if not ignore_labels:
+        plt.imshow(sample['labels'].numpy(), alpha=0.5)
 
 
 class CocoDataset(Dataset):
@@ -46,7 +50,7 @@ class CocoDataset(Dataset):
         image_path = os.path.join(self._images_dir, coco_img['file_name'])
         image = np.array(PIL.Image.open(image_path, 'r'))
 
-        sample = {'image': image, 'labels': labels}
+        sample = {'image': torch.from_numpy(image), 'labels': torch.from_numpy(labels)}
         if self._transform:
             sample = self._transform(sample)
 
@@ -67,3 +71,21 @@ class CocoDataset(Dataset):
             new_label = i + 1
             labels[label_mask] = new_label
         return labels.astype('uint8')
+
+
+if __name__ == '__main__':
+
+    normal_dataset = CocoDataset(r"E:\data\mlproj_dataset\coco\annotations\instances_train2014.json",
+                                 r"E:\data\mlproj_dataset\coco\images\train2014")
+
+    resized_dataset = CocoDataset(r"E:\data\mlproj_dataset\coco\annotations\instances_train2014.json",
+                                  r"E:\data\mlproj_dataset\coco\images\train2014",
+                                  Resize(150, 200))
+
+    items = [0, 3, 17]
+
+    for i in items:
+        show_sample(normal_dataset[i], ignore_labels=True)
+        show_sample(resized_dataset[i], ignore_labels=True)
+
+    plt.show()
