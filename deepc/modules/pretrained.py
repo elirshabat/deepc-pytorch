@@ -7,4 +7,3 @@ def resnet():
     :return: Pre-trained ResNet module
     """
     return models.resnet152(pretrained=True)
-
