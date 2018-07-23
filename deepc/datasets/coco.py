@@ -5,7 +5,7 @@ import os.path
 from PIL import Image
 import matplotlib.pyplot as plt
 import torch
-from augmentations.resize import Resize
+from deepc.datasets.augmentations.resize import Resize
 import yaml
 
 
