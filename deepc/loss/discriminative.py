@@ -75,8 +75,8 @@ class DiscriminativeLoss(torch.nn.Module):
         c_vars = []
         for c_id in loss_params['cluster_params']:
             c_params = loss_params['cluster_params'][c_id]
-            c_var = sum([((c_params['center'] - x).norm() - self._delta_var).clamp(0)**2
-                         for x in c_params['points'].t()])
+            center = c_params['center'].unsqueeze(1).repeat([1, c_params['points'].shape[1]])
+            c_var = (((c_params['points'] - center).norm(dim=0) - self._delta_var).clamp(0)**2).sum()
             c_vars.append(c_var)
 
         return sum(c_vars)/loss_params['num_clusters']
@@ -118,25 +118,19 @@ if __name__ == "__main__":
     model = ResnetMIS(pretrained_resnet=True)
     loss_func = DiscriminativeLoss(1, 1, 2, 2, 1)
 
-    dataset = CocoDataset(anns_file, img_dir, augmentations.Resize(240, 320))
+    dataset = CocoDataset(anns_file, img_dir, augmentations.Resize(240//2, 320//2))
 
-    sample = dataset[0]
-    img = sample['image']
-    labels = sample['labels']
+    num_samples = 10
 
-    embedding = model(img.permute([2, 0, 1]).unsqueeze(0).float()).squeeze(0)
-    loss = loss_func(embedding, labels)
-    print(f"loss={loss}")
-    loss.backward()
+    for i in range(num_samples):
+        sample = dataset[i]
+        img = sample['image']
+        labels = sample['labels']
 
-    # TODO: remote (temp code for debugging python crash)
-    loss_func.zero_grad()
-    sample = dataset[1]
-    img = sample['image']
-    labels = sample['labels']
-    embedding = model(img.permute([2, 0, 1]).unsqueeze(0).float()).squeeze(0)
-    loss = loss_func(embedding, labels)
-    print(f"loss={loss}")
-    loss.backward()
+        embedding = model(img.permute([2, 0, 1]).unsqueeze(0).float()).squeeze(0)
+        loss = loss_func(embedding, labels)
+        print(f"loss={loss}")
+        model.zero_grad()
+        loss.backward()
 
     print("Done")

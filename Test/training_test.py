@@ -37,12 +37,10 @@ if __name__ == '__main__':
     loss_func = DiscriminativeLoss(1, 1, 2, 2, 1)
 
     limit = 10
-    dataset = LimitedDataset(limit, anns_file, img_dir, augmentations.Resize(240, 320))
+    dataset = LimitedDataset(limit, anns_file, img_dir, augmentations.Resize(240//2, 320//2))
 
-    parameters_file = os.path.join(repo_dir, "Test", "limited_resnet.pkl")
-    train_instance = Train(model, loss_func, dataset, save_path=parameters_file, max_epochs=5)
-
-    # TODO: pass max epochs to run rather to init of module
-    train_instance.run()
+    parameters_file = os.path.join(repo_dir, "Test", "parameters", "limited_resnet.pkl")
+    train_instance = Train(model, loss_func, dataset, save_path=parameters_file, num_workers=0)
+    train_instance.run(max_epochs=100)
 
     print("Done training")

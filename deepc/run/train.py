@@ -5,7 +5,7 @@ import itertools
 
 class Train:
 
-    def __init__(self, model, loss_func, dataset, num_workers=1, max_epochs=float('inf'), learning_rate=1e-4,
+    def __init__(self, model, loss_func, dataset, num_workers=0, learning_rate=1e-4,
                  optimizer=None, save_path=None):
         """
         TODO: document
@@ -13,7 +13,6 @@ class Train:
         :param loss_func:
         :param dataset:
         :param num_workers:
-        :param max_epochs:
         :param learning_rate:
         :param optimizer:
         :param save_path:
@@ -22,7 +21,6 @@ class Train:
         self._loss_func = loss_func
         self._dataset = dataset
         self._data_loader = DataLoader(self._dataset, shuffle=True, num_workers=num_workers)
-        self._max_epochs = max_epochs
 
         if optimizer:
             self._optimizer = optimizer
@@ -31,13 +29,13 @@ class Train:
 
         self._save_path = save_path
 
-    def run(self):
+    def run(self, max_epochs=float('inf')):
         """
         TODO: document
         :return:
         """
         for epoch in itertools.count():
-            if epoch > self._max_epochs:
+            if epoch > max_epochs:
                 break
 
             for sample in self._data_loader:
