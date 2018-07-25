@@ -47,7 +47,7 @@ if __name__ == '__main__':
     dataset = LimitedDataset(limit, anns_file, img_dir, augmentations.Resize(240//2, 320//2))
 
     stats_file = os.path.join(repo_dir, "Test", "parameters", "limited_resnet_stats.pkl")
-    train_instance = Train(model, loss_func, dataset, save_path=parameters_file, num_workers=0, stats_path=stats_file)
+    train_instance = Train(model, loss_func, dataset, params_path=parameters_file, num_workers=0, train_stats_path=stats_file)
     train_instance.run(max_epochs=10)
 
     stats = analysis.load(stats_file)

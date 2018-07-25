@@ -7,43 +7,50 @@ import os.path
 
 class Train:
 
-    def __init__(self, model, loss_func, dataset, num_workers=0, learning_rate=1e-4,
-                 optimizer=None, save_path=None, stats_path=None):
+    def __init__(self, model, loss_func, train_set, dev_set=None, num_workers=0, learning_rate=1e-4,
+                 optimizer=None, params_path=None, train_stats_path=None, dev_stats_path=None):
         """
         TODO: document
         :param model:
         :param loss_func:
-        :param dataset:
+        :param train_set:
         :param num_workers:
         :param learning_rate:
         :param optimizer:
-        :param save_path:
+        :param params_path:
         """
         self._model = model
         self._loss_func = loss_func
-        self._dataset = dataset
-        self._data_loader = DataLoader(self._dataset, shuffle=True, num_workers=num_workers)
+        self._train_set = train_set
+        self._dev_set = dev_set
+        self._train_set_loader = DataLoader(self._train_set, shuffle=True, num_workers=num_workers)
+        self._dev_set_loader = DataLoader(self._dev_set, shuffle=True, num_workers=num_workers) if self._dev_set else None
 
         if optimizer:
             self._optimizer = optimizer
         else:
             self._optimizer = torch.optim.Adam(self._model.parameters(), lr=learning_rate)
 
-        self._save_path = save_path
-        self._stats_path = stats_path
+        self._params_path = params_path
+        self._train_stats_path = train_stats_path
+        self._dev_stats_path = dev_stats_path
 
     def run(self, max_epochs=float('inf')):
         """
         TODO: document
         :return:
         """
-        stats = analysis.load(self._stats_path) if os.path.isfile(self._stats_path) else analysis.Analysis("Train")
+        train_stats = analysis.load(self._train_stats_path) if os.path.isfile(
+            self._train_stats_path) else analysis.Analysis("Train")
+
+        dev_stats = analysis.load(self._dev_stats_path) if os.path.isfile(
+            self._dev_stats_path) else analysis.Analysis("Dev")
 
         for epoch in itertools.count():
             if epoch > max_epochs:
                 break
 
-            for sample in self._data_loader:
+            for sample in self._train_set_loader:
 
                 local_data, local_labels = sample['image'], sample['labels']
 
@@ -51,16 +58,34 @@ class Train:
 
                 loss = self._loss_func(pred.squeeze(0), local_labels.squeeze(0))
                 print(f"epoch:{epoch}, loss:{loss}")
-                stats.loss.append(loss)
+                train_stats.loss.append(loss)
 
                 self._model.zero_grad()
                 loss.backward()
                 self._optimizer.step()
 
-            stats.epoch()
+            train_stats.epoch()
 
-            if self._save_path:
-                torch.save(self._model.state_dict(), self._save_path)
+            if self._params_path:
+                torch.save(self._model.state_dict(), self._params_path)
 
-            if self._stats_path:
-                analysis.save(stats, self._stats_path)
+            if self._train_stats_path:
+                analysis.save(train_stats, self._train_stats_path)
+
+            if self._dev_set:
+
+                with torch.no_grad():
+
+                    for sample in self._dev_set_loader:
+
+                        local_data, local_labels = sample['image'], sample['labels']
+
+                        pred = self._model(local_data.permute([0, 3, 1, 2]).float())
+
+                        loss = self._loss_func(pred.squeeze(0), local_labels.squeeze(0))
+                        dev_stats.loss.append(loss)
+
+                    dev_stats.epoch()
+
+                    if self._dev_stats_path:
+                        analysis.save(train_stats, self._dev_stats_path)
