@@ -11,6 +11,7 @@ from deepc.datasets.coco import CocoDataset
 from deepc.datasets import augmentations
 from deepc.loss.discriminative import DiscriminativeLoss
 from deepc.run.train import Train
+from deepc.analysis import analysis
 
 
 class LimitedDataset(CocoDataset):
@@ -36,11 +37,13 @@ if __name__ == '__main__':
     model = ResnetMIS(pretrained_resnet=True)
     loss_func = DiscriminativeLoss(1, 1, 2, 2, 1)
 
-    limit = 10
+    limit = 2
     dataset = LimitedDataset(limit, anns_file, img_dir, augmentations.Resize(240//2, 320//2))
 
-    parameters_file = os.path.join(repo_dir, "Test", "parameters", "limited_resnet.pkl")
-    train_instance = Train(model, loss_func, dataset, save_path=parameters_file, num_workers=0)
-    train_instance.run(max_epochs=100)
+    parameters_file = os.path.join(repo_dir, "Test", "parameters", "limited_resnet_parameters.pkl")
+    stats_file = os.path.join(repo_dir, "Test", "parameters", "limited_resnet_stats.pkl")
+    train_instance = Train(model, loss_func, dataset, save_path=parameters_file, num_workers=0, stats_path=stats_file)
+    train_instance.run(max_epochs=10)
 
-    print("Done training")
+    stats = analysis.load(stats_file)
+    stats.show()
