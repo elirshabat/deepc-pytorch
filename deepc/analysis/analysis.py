@@ -26,7 +26,6 @@ class Analysis:
 
     def show(self):
         fig, loss_ax = plt.subplots(1, 1)
-        print(self.loss_curve)
         loss_ax.plot(self.loss_curve)
         fig.suptitle(f"{self.name} - stats")
         loss_ax.set_title("Loss Curve")

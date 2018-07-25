@@ -1,6 +1,7 @@
 import os.path
 import sys
 import yaml
+import torch
 
 curr_dir = os.path.abspath(os.path.dirname(__file__))
 repo_dir = os.path.join(curr_dir, "..")
@@ -34,13 +35,17 @@ if __name__ == '__main__':
         img_dir = paths['coco_train2014_images']
         anns_file = paths['coco_train2014_annotations']
 
+    parameters_file = os.path.join(repo_dir, "Test", "parameters", "limited_resnet_parameters.pkl")
+
     model = ResnetMIS(pretrained_resnet=True)
+
+    if os.path.isfile(parameters_file):
+        model.load_state_dict(torch.load(parameters_file))
     loss_func = DiscriminativeLoss(1, 1, 2, 2, 1)
 
     limit = 2
     dataset = LimitedDataset(limit, anns_file, img_dir, augmentations.Resize(240//2, 320//2))
 
-    parameters_file = os.path.join(repo_dir, "Test", "parameters", "limited_resnet_parameters.pkl")
     stats_file = os.path.join(repo_dir, "Test", "parameters", "limited_resnet_stats.pkl")
     train_instance = Train(model, loss_func, dataset, save_path=parameters_file, num_workers=0, stats_path=stats_file)
     train_instance.run(max_epochs=10)
