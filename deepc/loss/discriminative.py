@@ -129,4 +129,14 @@ if __name__ == "__main__":
     print(f"loss={loss}")
     loss.backward()
 
+    # TODO: remote (temp code for debugging python crash)
+    loss_func.zero_grad()
+    sample = dataset[1]
+    img = sample['image']
+    labels = sample['labels']
+    embedding = model(img.permute([2, 0, 1]).unsqueeze(0).float()).squeeze(0)
+    loss = loss_func(embedding, labels)
+    print(f"loss={loss}")
+    loss.backward()
+
     print("Done")

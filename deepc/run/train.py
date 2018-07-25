@@ -5,7 +5,7 @@ import itertools
 
 class Train:
 
-    def __init__(self, model, loss_func, dataset, num_workers=4, max_epochs=float('inf'), learning_rate=1e-4,
+    def __init__(self, model, loss_func, dataset, num_workers=1, max_epochs=float('inf'), learning_rate=1e-4,
                  optimizer=None, save_path=None):
         """
         TODO: document
@@ -44,9 +44,11 @@ class Train:
 
                 local_data, local_labels = sample['image'], sample['labels']
 
-                pred = self._model(local_data.permute([2, 0, 1]).unsqueeze(0).float()).squeeze(0)
+                pred = self._model(local_data.permute([0, 3, 1, 2]).float())
 
-                loss = self._loss_func(pred, local_labels)
+                loss = self._loss_func(pred.squeeze(0), local_labels.squeeze(0))
+                print(f"epoch:{epoch}, loss:{loss}")
+
                 self._model.zero_grad()
                 loss.backward()
                 self._optimizer.step()

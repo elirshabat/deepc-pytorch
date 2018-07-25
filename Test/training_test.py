@@ -1,0 +1,48 @@
+import os.path
+import sys
+import yaml
+
+curr_dir = os.path.abspath(os.path.dirname(__file__))
+repo_dir = os.path.join(curr_dir, "..")
+sys.path.append(repo_dir)
+
+from deepc.modules.resnet import ResnetMIS
+from deepc.datasets.coco import CocoDataset
+from deepc.datasets import augmentations
+from deepc.loss.discriminative import DiscriminativeLoss
+from deepc.run.train import Train
+
+
+class LimitedDataset(CocoDataset):
+
+    def __init__(self, limit, anns_file, images_dir, transform=None):
+        super().__init__(anns_file, images_dir, transform=transform)
+
+        self._limit = limit
+
+    def __len__(self):
+        return self._limit
+
+
+if __name__ == '__main__':
+
+    local_dir = os.path.join(repo_dir, "Local")
+    paths_config_file_path = os.path.join(local_dir, "paths.yaml")
+    with open(paths_config_file_path, 'r') as f:
+        paths = yaml.load(f)
+        img_dir = paths['coco_train2014_images']
+        anns_file = paths['coco_train2014_annotations']
+
+    model = ResnetMIS(pretrained_resnet=True)
+    loss_func = DiscriminativeLoss(1, 1, 2, 2, 1)
+
+    limit = 10
+    dataset = LimitedDataset(limit, anns_file, img_dir, augmentations.Resize(240, 320))
+
+    parameters_file = os.path.join(repo_dir, "Test", "limited_resnet.pkl")
+    train_instance = Train(model, loss_func, dataset, save_path=parameters_file, max_epochs=5)
+
+    # TODO: pass max epochs to run rather to init of module
+    train_instance.run()
+
+    print("Done training")
