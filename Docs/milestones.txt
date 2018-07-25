@@ -1,0 +1,35 @@
+Resnet training:
+    Due: 25/07
+    Description: Run training including implementation of debug utilities (loss and accuracy curves).
+
+Resnet errors mapping:
+    Due: 28/07
+    Description: Manually explore images on which the resnet architecture fails.
+
+RNN module:
+    Due: 28/07
+    Description: Implement RNN-based architecture to provide input of variable size.
+
+RNN training:
+    Due: 31/07
+    Description: Train the RNN-based architecture.
+
+Compare Resnet to RNN on fixed-size inputs:
+    Due: 02/08
+    Description: Compare Resnet to RNN on fixed-size inputs (accuracy and loss on validation sets, convergence time).
+
+Noise pixels:
+    Due: 05/08
+    Description: Add random noise pixels to the input, re-train and check the accuracy on the validation set.
+
+RNN tuning:
+    Due: 10/08
+    Description: Tune the RNN network to improve noise-handling. Compare to regular RNN.
+
+Compare all:
+    Due: 12/08
+    Description: Compare the performance of resnet and of the tuned RNN on fixed-size inputs.
+
+Final report:
+    Due: 16/08
+    Description: Write the final report.
