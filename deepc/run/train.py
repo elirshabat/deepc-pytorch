@@ -10,14 +10,17 @@ class Train:
     def __init__(self, model, loss_func, train_set, dev_set=None, num_workers=0, learning_rate=1e-4,
                  optimizer=None, params_path=None, train_stats_path=None, dev_stats_path=None):
         """
-        TODO: document
+        Tr
         :param model:
         :param loss_func:
         :param train_set:
+        :param dev_set:
         :param num_workers:
         :param learning_rate:
         :param optimizer:
         :param params_path:
+        :param train_stats_path:
+        :param dev_stats_path:
         """
         self._model = model
         self._loss_func = loss_func
@@ -88,4 +91,4 @@ class Train:
                     dev_stats.epoch()
 
                     if self._dev_stats_path:
-                        analysis.save(train_stats, self._dev_stats_path)
+                        analysis.save(dev_stats, self._dev_stats_path)

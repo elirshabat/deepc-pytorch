@@ -2,6 +2,7 @@ import os.path
 import sys
 import yaml
 import torch
+import matplotlib.pyplot as plt
 
 curr_dir = os.path.abspath(os.path.dirname(__file__))
 repo_dir = os.path.join(curr_dir, "..")
@@ -32,23 +33,38 @@ if __name__ == '__main__':
     paths_config_file_path = os.path.join(local_dir, "paths.yaml")
     with open(paths_config_file_path, 'r') as f:
         paths = yaml.load(f)
-        img_dir = paths['coco_train2014_images']
-        anns_file = paths['coco_train2014_annotations']
+        train_img_dir = paths['coco_train2014_images']
+        train_anns_file = paths['coco_train2014_annotations']
+        dev_img_dir = paths['coco_dev2014_images']
+        dev_anns_file = paths['coco_dev2014_annotations']
 
     parameters_file = os.path.join(repo_dir, "Test", "parameters", "limited_resnet_parameters.pkl")
-
     model = ResnetMIS(pretrained_resnet=True)
-
     if os.path.isfile(parameters_file):
         model.load_state_dict(torch.load(parameters_file))
+
     loss_func = DiscriminativeLoss(1, 1, 2, 2, 1)
 
-    limit = 2
-    dataset = LimitedDataset(limit, anns_file, img_dir, augmentations.Resize(240//2, 320//2))
+    image_height, image_width = 240//2, 320//2
 
-    stats_file = os.path.join(repo_dir, "Test", "parameters", "limited_resnet_stats.pkl")
-    train_instance = Train(model, loss_func, dataset, params_path=parameters_file, num_workers=0, train_stats_path=stats_file)
-    train_instance.run(max_epochs=10)
+    train_set_size = 5
+    train_set = LimitedDataset(train_set_size, train_anns_file, train_img_dir,
+                               augmentations.Resize(image_height, image_width))
+    dev_set_size = 2
+    dev_set = LimitedDataset(dev_set_size, dev_anns_file, dev_img_dir,
+                             augmentations.Resize(image_height, image_width))
 
-    stats = analysis.load(stats_file)
-    stats.show()
+    train_stats_file = os.path.join(repo_dir, "Test", "parameters", "limited_resnet_stats_train.pkl")
+    dev_stats_file = os.path.join(repo_dir, "Test", "parameters", "limited_resnet_stats_dev.pkl")
+
+    train_instance = Train(model, loss_func, train_set, dev_set=dev_set, params_path=parameters_file, num_workers=0,
+                           train_stats_path=train_stats_file, dev_stats_path=dev_stats_file)
+    train_instance.run(max_epochs=100)
+
+    train_stats = analysis.load(train_stats_file)
+    train_stats.plot()
+
+    dev_stats = analysis.load(dev_stats_file)
+    dev_stats.plot()
+
+    plt.show()

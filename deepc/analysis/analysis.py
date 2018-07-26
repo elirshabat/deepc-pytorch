@@ -24,12 +24,10 @@ class Analysis:
             self.loss_curve.append(sum(self.loss)/len(self.loss))
         self.loss = []
 
-    def show(self):
+    def plot(self):
         fig, loss_ax = plt.subplots(1, 1)
         loss_ax.plot(self.loss_curve)
         fig.suptitle(f"{self.name} - stats")
         loss_ax.set_title("Loss Curve")
         loss_ax.set_xlabel("epoch")
         loss_ax.set_ylabel("loss")
-
-        plt.show()
