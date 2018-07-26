@@ -3,6 +3,7 @@ import sys
 import yaml
 import torch
 import matplotlib.pyplot as plt
+import time
 
 curr_dir = os.path.abspath(os.path.dirname(__file__))
 repo_dir = os.path.join(curr_dir, "..")
@@ -38,12 +39,13 @@ if __name__ == '__main__':
         dev_img_dir = paths['coco_dev2014_images']
         dev_anns_file = paths['coco_dev2014_annotations']
 
+    out_channels = 3
     parameters_file = os.path.join(repo_dir, "Test", "parameters", "limited_resnet_parameters.pkl")
-    model = ResnetMIS(pretrained_resnet=True)
+    model = ResnetMIS(pretrained_resnet=True, out_channels=out_channels)
     if os.path.isfile(parameters_file):
         model.load_state_dict(torch.load(parameters_file))
 
-    loss_func = DiscriminativeLoss(1, 1, 2, 2, 1)
+    loss_func = DiscriminativeLoss(out_channels)
 
     image_height, image_width = 240//2, 320//2
 
@@ -59,7 +61,13 @@ if __name__ == '__main__':
 
     train_instance = Train(model, loss_func, train_set, dev_set=dev_set, params_path=parameters_file, num_workers=0,
                            train_stats_path=train_stats_file, dev_stats_path=dev_stats_file)
-    train_instance.run(max_epochs=100)
+
+    start_time = time.time()
+    num_epochs = 50
+    train_instance.run(max_epochs=num_epochs)
+    end_time = time.time()
+
+    print(f"Execution time for {num_epochs} epoches: {end_time - start_time}")
 
     train_stats = analysis.load(train_stats_file)
     train_stats.plot()
