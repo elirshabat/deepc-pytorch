@@ -33,14 +33,14 @@ class DiscriminativeLoss(torch.nn.Module):
         self._dist_weight = dist_weight
         self._reg_weight = reg_weight
 
-    def forward(self, data, labels):
+    def forward(self, data, labels, cluster_ids):
         """
         Compute the loss of the given data with respect to the labels.
         :param data: data points
         :param labels: ground truth of the clusters
         :return: the loss (scalar value)
         """
-        loss_params = self._calc_loss_params(data, labels)
+        loss_params = self._calc_loss_params(data, labels, cluster_ids)
 
         var_term = self._calc_var_term(loss_params)
         dist_term = self._calc_dist_term(loss_params)
@@ -49,7 +49,7 @@ class DiscriminativeLoss(torch.nn.Module):
         return self._var_weight*var_term + self._dist_weight*dist_term + self._reg_weight*reg_term
 
     @staticmethod
-    def _calc_loss_params(data, labels):
+    def _calc_loss_params(data, labels, cluster_ids):
         """
         Calculate parameters needed to compute the loss.
         :param data: input data points
@@ -57,7 +57,7 @@ class DiscriminativeLoss(torch.nn.Module):
         :return: loss parameters
         """
         out_params = dict()
-        out_params['cluster_ids'] = labels.unique()
+        out_params['cluster_ids'] = cluster_ids
         out_params['num_clusters'] = len(out_params['cluster_ids'])
         out_params['cluster_params'] = dict()
 

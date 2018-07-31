@@ -54,10 +54,16 @@ class CocoDataset(Dataset):
         image = self.load_image(image_path)
 
         labels = self._anns_to_tensor(coco_img, coco_anns)
+        cluster_ids = labels.unique()
 
-        sample = {'image': image, 'labels': labels}
+        sample = {'image': image, 'labels': labels, 'cluster_ids': cluster_ids}
         if self._transform:
             sample = self._transform(sample)
+
+        if torch.cuda.device_count() > 0:
+            sample['image'] = sample['image'].cuda()
+            sample['labels'] = sample['labels'].cuda()
+            sample['cluster_ids'] = sample['cluster_ids'].cuda()
 
         return sample
 

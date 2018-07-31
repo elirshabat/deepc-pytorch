@@ -21,7 +21,8 @@ class Resize:
         :return: The resized sample.
         """
         return {'image': self.resize_tensor_image(sample['image']),
-                'labels': self.resize_tensor_image(sample['labels'])}
+                'labels': self.resize_tensor_image(sample['labels']),
+                'cluster_ids': sample['cluster_ids']}
 
     def resize_tensor_image(self, tensor):
         """

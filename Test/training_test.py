@@ -47,6 +47,9 @@ if __name__ == '__main__':
 
     loss_func = DiscriminativeLoss(out_channels)
 
+    if torch.cuda.device_count() > 0:
+        model = model.cuda()
+
     image_height, image_width = 240//2, 320//2
 
     train_set_size = 5

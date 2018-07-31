@@ -55,11 +55,11 @@ class Train:
 
             for sample in self._train_set_loader:
 
-                local_data, local_labels = sample['image'], sample['labels']
+                local_data, local_labels, cluster_ids = sample['image'], sample['labels'], sample['cluster_ids']
 
                 pred = self._model(local_data.permute([0, 3, 1, 2]).float())
 
-                loss = self._loss_func(pred.squeeze(0), local_labels.squeeze(0))
+                loss = self._loss_func(pred.squeeze(0), local_labels.squeeze(0), cluster_ids.squeeze(0))
                 print(f"epoch:{epoch}, loss:{loss}")
                 train_stats.loss.append(loss)
 
@@ -81,11 +81,11 @@ class Train:
 
                     for sample in self._dev_set_loader:
 
-                        local_data, local_labels = sample['image'], sample['labels']
+                        local_data, local_labels, cluster_ids = sample['image'], sample['labels'], sample['cluster_ids']
 
                         pred = self._model(local_data.permute([0, 3, 1, 2]).float())
 
-                        loss = self._loss_func(pred.squeeze(0), local_labels.squeeze(0))
+                        loss = self._loss_func(pred.squeeze(0), local_labels.squeeze(0), cluster_ids.squeeze(0))
                         dev_stats.loss.append(loss)
 
                     dev_stats.epoch()
