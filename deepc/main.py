@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import time
 import argparse
 import warnings
+import logging
 from deepc.modules.resnet import ResnetMIS
 from deepc.datasets.coco import CocoDataset
 from deepc.datasets import augmentations
@@ -30,6 +31,15 @@ if __name__ == '__main__':
 
     args = get_args()
     print(args)
+
+    logger = logging.getLogger('train')
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler('train.log')
+    formatter = logging.Formatter(f"%(asctime)s : %(levelname)s : {args.model} : %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    streamer = logging.StreamHandler()
+    logger.addHandler(streamer)
 
     with open(args.paths_file, 'r') as f:
         paths = yaml.load(f)

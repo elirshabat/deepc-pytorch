@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader
 from deepc.analysis import analysis
 import itertools
 import os.path
+import logging
 
 
 class Train:
@@ -38,6 +39,8 @@ class Train:
         self._train_stats_path = train_stats_path
         self._dev_stats_path = dev_stats_path
 
+        self._logger = logging.getLogger('train')
+
     def run(self, max_epochs=float('inf')):
         """
         TODO: document
@@ -60,8 +63,9 @@ class Train:
                 pred = self._model(local_data.permute([0, 3, 1, 2]).float())
 
                 loss = self._loss_func(pred.squeeze(0), local_labels.squeeze(0), cluster_ids.squeeze(0))
-                print(f"epoch:{epoch}, loss:{loss}")
+                # print(f"epoch:{epoch}, loss:{loss}")
                 train_stats.loss.append(loss)
+                self._logger.info(f"train step - epoch:{epoch}, loss:{loss}")
 
                 self._model.zero_grad()
                 loss.backward()
@@ -87,6 +91,7 @@ class Train:
 
                         loss = self._loss_func(pred.squeeze(0), local_labels.squeeze(0), cluster_ids.squeeze(0))
                         dev_stats.loss.append(loss)
+                        self._logger.info(f"dev step - epoch:{epoch}, loss:{loss}")
 
                     dev_stats.epoch()
 
