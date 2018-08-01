@@ -42,6 +42,9 @@ class DiscriminativeLoss(torch.nn.Module):
         """
         loss_params = self._calc_loss_params(data, labels, cluster_ids)
 
+        if loss_params['num_clusters'] <= 1:
+            return 0
+
         var_term = self._calc_var_term(loss_params)
         dist_term = self._calc_dist_term(loss_params)
         reg_term = self._calc_reg_term(loss_params)

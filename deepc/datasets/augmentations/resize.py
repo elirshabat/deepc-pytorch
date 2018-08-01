@@ -20,9 +20,11 @@ class Resize:
         :param sample: Sample returned from dataset.
         :return: The resized sample.
         """
-        return {'image': self.resize_tensor_image(sample['image']),
-                'labels': self.resize_tensor_image(sample['labels']),
-                'cluster_ids': sample['cluster_ids']}
+        img, labels = self.resize_tensor_image(sample['image']), self.resize_tensor_image(sample['labels'])
+
+        return {'image': img,
+                'labels': labels,
+                'cluster_ids': labels.unique()}
 
     def resize_tensor_image(self, tensor):
         """
