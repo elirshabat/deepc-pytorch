@@ -49,6 +49,8 @@ if __name__ == '__main__':
 
     if torch.cuda.device_count() > 0:
         model = model.cuda()
+    else:
+        print("Warning: operating without GPU")
 
     image_height, image_width = 240//2, 320//2
 
@@ -66,7 +68,7 @@ if __name__ == '__main__':
                            train_stats_path=train_stats_file, dev_stats_path=dev_stats_file)
 
     start_time = time.time()
-    num_epochs = 50
+    num_epochs = 10
     train_instance.run(max_epochs=num_epochs)
     end_time = time.time()
 
