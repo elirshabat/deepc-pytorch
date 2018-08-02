@@ -22,7 +22,7 @@ def initialize_weights(method='kaiming', *models):
                 elif method == 'normal':
                     init.normal(module.weight.data,mean=0, std=0.02)
                 if module.bias is not None:
-                    init.constant(module.bias.data,0)
+                    init.constant_(module.bias.data,0)
 
 
 class GlobalConvolutionBlock(torch.nn.Module):

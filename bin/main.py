@@ -6,6 +6,12 @@ import time
 import argparse
 import warnings
 import logging
+import sys
+
+curr_dir = os.path.abspath(os.path.dirname(__file__))
+repo_dir = os.path.join(curr_dir, "..")
+sys.path.append(repo_dir)
+
 from deepc.modules.resnet import ResnetMIS
 from deepc.datasets.coco import CocoDataset
 from deepc.datasets import augmentations
@@ -79,7 +85,7 @@ if __name__ == '__main__':
     dev_stats_file = os.path.join(stats_dir, def_stats_file_name)
 
     train_instance = Train(model, loss_func, train_set, dev_set=dev_set, params_path=parameters_file, num_workers=0,
-                           train_stats_path=train_stats_file, dev_stats_path=dev_stats_file)
+                           train_stats_path=train_stats_file, dev_stats_path=dev_stats_file, iteration_size=5)
 
     start_time = time.time()
     num_epochs = args.epoch_limit
@@ -94,4 +100,4 @@ if __name__ == '__main__':
     dev_stats = analysis.load(dev_stats_file)
     dev_stats.plot()
 
-    plt.show()
+    plt.show(block=True)

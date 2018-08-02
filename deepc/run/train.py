@@ -9,7 +9,7 @@ import logging
 class Train:
 
     def __init__(self, model, loss_func, train_set, dev_set=None, num_workers=0, learning_rate=1e-4,
-                 optimizer=None, params_path=None, train_stats_path=None, dev_stats_path=None):
+                 optimizer=None, params_path=None, train_stats_path=None, dev_stats_path=None, iteration_size=None):
         """
         Tr
         :param model:
@@ -38,6 +38,7 @@ class Train:
         self._params_path = params_path
         self._train_stats_path = train_stats_path
         self._dev_stats_path = dev_stats_path
+        self._iteration_size = iteration_size
 
         self._logger = logging.getLogger('train')
 
@@ -47,10 +48,10 @@ class Train:
         :return:
         """
         train_stats = analysis.load(self._train_stats_path) if os.path.isfile(
-            self._train_stats_path) else analysis.Analysis("Train")
+            self._train_stats_path) else analysis.Analysis("Train", iteration_size=self._iteration_size)
 
         dev_stats = analysis.load(self._dev_stats_path) if os.path.isfile(
-            self._dev_stats_path) else analysis.Analysis("Dev")
+            self._dev_stats_path) else analysis.Analysis("Dev", iteration_size=self._iteration_size)
 
         for epoch in itertools.count():
             if epoch > max_epochs:
@@ -63,15 +64,14 @@ class Train:
                 pred = self._model(local_data.permute([0, 3, 1, 2]).float())
 
                 loss = self._loss_func(pred.squeeze(0), local_labels.squeeze(0), cluster_ids.squeeze(0))
-                # print(f"epoch:{epoch}, loss:{loss}")
-                train_stats.loss.append(loss)
+                train_stats.step(loss=loss)
                 self._logger.info(f"train step - epoch:{epoch}, loss:{loss}")
 
                 self._model.zero_grad()
                 loss.backward()
                 self._optimizer.step()
 
-            train_stats.epoch()
+            train_stats.step(epoch_end=True)
 
             if self._params_path:
                 torch.save(self._model.state_dict(), self._params_path)
@@ -90,10 +90,10 @@ class Train:
                         pred = self._model(local_data.permute([0, 3, 1, 2]).float())
 
                         loss = self._loss_func(pred.squeeze(0), local_labels.squeeze(0), cluster_ids.squeeze(0))
-                        dev_stats.loss.append(loss)
+                        dev_stats.step(loss=loss)
                         self._logger.info(f"dev step - epoch:{epoch}, loss:{loss}")
 
-                    dev_stats.epoch()
+                    dev_stats.step(epoch_end=True)
 
                     if self._dev_stats_path:
                         analysis.save(dev_stats, self._dev_stats_path)
