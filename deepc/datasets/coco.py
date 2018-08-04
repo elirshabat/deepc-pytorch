@@ -5,8 +5,6 @@ import os.path
 from PIL import Image
 import matplotlib.pyplot as plt
 import torch
-from deepc.datasets.augmentations.resize import Resize
-import yaml
 
 
 def show_sample(sample, ignore_image=False, ignore_labels=False):
@@ -94,24 +92,3 @@ class CocoDataset(Dataset):
             new_label = i + 1
             labels[label_mask] = new_label
         return torch.tensor(labels.astype('uint8'), dtype=torch.uint8)
-
-
-if __name__ == '__main__':
-
-    paths_config_file_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "..", "Local", "paths.yaml")
-    with open(paths_config_file_path, 'r') as f:
-        paths = yaml.load(f)
-        img_dir = paths['coco_train2014_images']
-        anns_file = paths['coco_train2014_annotations']
-
-    normal_dataset = CocoDataset(anns_file, img_dir)
-
-    resized_dataset = CocoDataset(anns_file, img_dir, Resize(200, 300))
-
-    items = [0, 3, 17]
-
-    for i in items:
-        show_sample(normal_dataset[i])
-        show_sample(resized_dataset[i])
-
-    plt.show()

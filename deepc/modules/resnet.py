@@ -1,9 +1,5 @@
 import torch
 from torchvision import models
-import yaml
-import os.path
-from deepc.datasets.coco import CocoDataset
-from deepc.datasets import augmentations
 import torch.nn.init as init
 import numpy as np
 
@@ -116,21 +112,3 @@ class ResnetMIS(torch.nn.Module):
         score_map = self.br5(self.deconv2(dec4))
 
         return self.activation(score_map)
-
-
-if __name__ == "__main__":
-    paths_config_file_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "..", "Local", "paths.yaml")
-    with open(paths_config_file_path, 'r') as f:
-        paths = yaml.load(f)
-        img_dir = paths['coco_train2014_images']
-        anns_file = paths['coco_train2014_annotations']
-
-    model = ResnetMIS(pretrained_resnet=True)
-
-    dataset = CocoDataset(anns_file, img_dir, augmentations.Resize(240, 320))
-
-    sample = dataset[0]
-    img = sample['image']
-
-    embedding = model(img.permute([2, 0, 1]).unsqueeze(0).float())
-    print(embedding.shape)

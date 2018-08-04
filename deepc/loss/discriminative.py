@@ -1,9 +1,4 @@
 import torch
-import os.path
-import yaml
-from deepc.modules.resnet import ResnetMIS
-from deepc.datasets.coco import CocoDataset
-from deepc.datasets import augmentations
 import numpy as np
 
 
@@ -116,31 +111,3 @@ class DiscriminativeLoss(torch.nn.Module):
         sum_term = sum([(loss_params['cluster_params'][c_id]['center'].norm() - self._delta_reg).clamp(0)
                         for c_id in loss_params['cluster_params']])
         return sum_term/loss_params['num_clusters']
-
-
-if __name__ == "__main__":
-    paths_config_file_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "..", "Local", "paths.yaml")
-    with open(paths_config_file_path, 'r') as f:
-        paths = yaml.load(f)
-        img_dir = paths['coco_train2014_images']
-        anns_file = paths['coco_train2014_annotations']
-
-    model = ResnetMIS(pretrained_resnet=True)
-    loss_func = DiscriminativeLoss(1, 1, 2, 2, 1)
-
-    dataset = CocoDataset(anns_file, img_dir, augmentations.Resize(240//2, 320//2))
-
-    num_samples = 10
-
-    for i in range(num_samples):
-        sample = dataset[i]
-        img = sample['image']
-        labels = sample['labels']
-
-        embedding = model(img.permute([2, 0, 1]).unsqueeze(0).float()).squeeze(0)
-        loss = loss_func(embedding, labels)
-        print(f"loss={loss}")
-        model.zero_grad()
-        loss.backward()
-
-    print("Done")
