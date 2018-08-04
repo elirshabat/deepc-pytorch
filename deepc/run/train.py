@@ -53,6 +53,8 @@ class Train:
         dev_stats = analysis.load(self._dev_stats_path) if os.path.isfile(
             self._dev_stats_path) else analysis.Analysis("Dev", iteration_size=self._iteration_size)
 
+        t_train, t_dev = 0, 0
+
         for epoch in itertools.count():
             if epoch > max_epochs:
                 break
@@ -62,14 +64,24 @@ class Train:
                 local_data, local_labels, cluster_ids = sample['image'], sample['labels'], sample['cluster_ids']
 
                 pred = self._model(local_data.permute([0, 3, 1, 2]).float())
-
                 loss = self._loss_func(pred.squeeze(0), local_labels.squeeze(0), cluster_ids.squeeze(0))
-                train_stats.step(loss=loss)
-                self._logger.info(f"train step - epoch:{epoch}, loss:{loss}")
 
                 self._model.zero_grad()
                 loss.backward()
                 self._optimizer.step()
+
+                t_train += 1
+
+                self._logger.info(f"train step - epoch:{epoch}, loss:{loss}")
+                train_stats.step(loss=loss)
+
+                if t_train % self._iteration_size == 0:
+
+                    if self._params_path:
+                        torch.save(self._model.state_dict(), self._params_path)
+
+                    if self._train_stats_path:
+                        analysis.save(train_stats, self._train_stats_path)
 
             train_stats.step(epoch_end=True)
 
@@ -88,10 +100,14 @@ class Train:
                         local_data, local_labels, cluster_ids = sample['image'], sample['labels'], sample['cluster_ids']
 
                         pred = self._model(local_data.permute([0, 3, 1, 2]).float())
-
                         loss = self._loss_func(pred.squeeze(0), local_labels.squeeze(0), cluster_ids.squeeze(0))
-                        dev_stats.step(loss=loss)
+
                         self._logger.info(f"dev step - epoch:{epoch}, loss:{loss}")
+                        dev_stats.step(loss=loss)
+
+                        if t_dev % self._iteration_size == 0:
+                            if self._dev_stats_path:
+                                analysis.save(dev_stats, self._dev_stats_path)
 
                     dev_stats.step(epoch_end=True)
 
