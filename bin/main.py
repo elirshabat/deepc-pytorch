@@ -28,8 +28,12 @@ def get_args():
     parser.add_argument("--model", default="resnet", help="the model to use")
     parser.add_argument("--resize", "-r", type=int, nargs=2, default=[240, 320],
                         help="tuple of (height, width) to resize the input images")
-    parser.add_argument("--epoch-limit", "-l", type=int, default=1e9)
-    parser.add_argument("--interactive", "-i", action='store_true')
+    parser.add_argument("--epoch-limit", "-l", type=int, default=1e9, help="maximum number of epochs to run")
+    parser.add_argument("--interactive", "-i", action='store_true',
+                        help="whether or not to show debug info interactively")
+    parser.add_argument("--batch-size", "-b", type=int, default=1, help="batch size to use")
+    parser.add_argument("--num-workers", "-n", type=int, default=0, help="number of workers to use for reading data")
+    parser.add_argument("--iter-size", "-t", type=int, help="iteration size for saving stats and parameters")
 
     return parser.parse_args()
 
@@ -88,9 +92,10 @@ if __name__ == '__main__':
     train_stats_file = os.path.join(stats_dir, train_stats_file_name)
     dev_stats_file = os.path.join(stats_dir, def_stats_file_name)
 
-    train_instance = Train(model, loss_func, train_set, dev_set=dev_set, params_path=parameters_file, num_workers=0,
-                           train_stats_path=train_stats_file, dev_stats_path=dev_stats_file, iteration_size=5,
-                           interactive=args.interactive)
+    train_instance = Train(model, loss_func, train_set, dev_set=dev_set, params_path=parameters_file,
+                           num_workers=args.num_workers, train_stats_path=train_stats_file,
+                           dev_stats_path=dev_stats_file, iteration_size=5, interactive=args.interactive,
+                           batch_size=args.batch_size)
 
     start_time = time.time()
     num_epochs = args.epoch_limit

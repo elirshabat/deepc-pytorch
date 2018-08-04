@@ -4,13 +4,14 @@ from deepc.analysis import analysis
 import itertools
 import os.path
 import logging
+from deepc.datasets.collate import collate_fn
 
 
 class Train:
 
     def __init__(self, model, loss_func, train_set, dev_set=None, num_workers=0, learning_rate=1e-4,
                  optimizer=None, params_path=None, train_stats_path=None, dev_stats_path=None, iteration_size=None,
-                 interactive=False):
+                 interactive=False, batch_size=1):
         """
         Tr
         :param model:
@@ -28,8 +29,10 @@ class Train:
         self._loss_func = loss_func
         self._train_set = train_set
         self._dev_set = dev_set
-        self._train_set_loader = DataLoader(self._train_set, shuffle=True, num_workers=num_workers)
-        self._dev_set_loader = DataLoader(self._dev_set, shuffle=True, num_workers=num_workers) if self._dev_set else None
+        self._train_set_loader = DataLoader(self._train_set, shuffle=True, num_workers=num_workers,
+                                            batch_size=batch_size, collate_fn=collate_fn)
+        self._dev_set_loader = DataLoader(self._dev_set, shuffle=True, num_workers=num_workers,
+                                          batch_size=batch_size, collate_fn=collate_fn) if self._dev_set else None
         self._interactive = interactive
 
         if optimizer:
@@ -77,7 +80,7 @@ class Train:
                 self._logger.info(f"train step - epoch:{epoch}, loss:{loss}")
                 train_stats.step(loss=loss)
 
-                if t_train % self._iteration_size == 0:
+                if self._iteration_size and t_train % self._iteration_size == 0:
 
                     if self._params_path:
                         torch.save(self._model.state_dict(), self._params_path)
@@ -113,7 +116,7 @@ class Train:
                         self._logger.info(f"dev step - epoch:{epoch}, loss:{loss}")
                         dev_stats.step(loss=loss)
 
-                        if t_dev % self._iteration_size == 0:
+                        if self._iteration_size and t_dev % self._iteration_size == 0:
 
                             if self._dev_stats_path:
                                 analysis.save(dev_stats, self._dev_stats_path)

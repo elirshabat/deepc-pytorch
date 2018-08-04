@@ -52,7 +52,7 @@ class CocoDataset(Dataset):
         image = self.load_image(image_path)
 
         labels = self._anns_to_tensor(coco_img, coco_anns)
-        cluster_ids = labels.unique()
+        cluster_ids = labels.unique().int()
 
         sample = {'image': image, 'labels': labels, 'cluster_ids': cluster_ids}
         if self._transform:
