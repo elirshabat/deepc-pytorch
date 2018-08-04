@@ -73,7 +73,7 @@ if __name__ == '__main__':
         else:
             model = ResnetMIS(pretrained_resnet=True, out_channels=out_channels)
 
-    loss_func = DiscriminativeLoss(out_channels)
+    loss_func = DiscriminativeLoss()
 
     if torch.cuda.device_count() > 0:
         model = model.cuda()
