@@ -33,16 +33,25 @@ class DiscriminativeLoss(torch.nn.Module):
         :param labels: ground truth of the clusters
         :return: the loss (scalar value)
         """
-        loss_params = self._calc_loss_params(data, labels, cluster_ids)
+        batch_size = data.shape[0]
+        var_terms, dist_terms, reg_terms = [], [], []
 
-        if loss_params['num_clusters'] <= 1:
-            return torch.tensor(0, device=data.device, dtype=torch.float)
+        for i in range(batch_size):
 
-        var_term = self._calc_var_term(loss_params)
-        dist_term = self._calc_dist_term(loss_params)
-        reg_term = self._calc_reg_term(loss_params, data.shape[0])
+            loss_params = self._calc_loss_params(data[i, :, :, :], labels[i, :, :], cluster_ids[i, :])
 
-        return self._var_weight*var_term + self._dist_weight*dist_term + self._reg_weight*reg_term
+            if loss_params['num_clusters'] <= 1:
+                var_terms.append(torch.tensor(0, device=data.device, dtype=torch.float))
+                dist_terms.append(torch.tensor(0, device=data.device, dtype=torch.float))
+                reg_terms.append(torch.tensor(0, device=data.device, dtype=torch.float))
+            else:
+                var_terms.append(self._calc_var_term(loss_params))
+                dist_terms.append(self._calc_dist_term(loss_params))
+                reg_terms.append(self._calc_reg_term(loss_params, data.shape[1]))
+
+        return (self._var_weight*sum(var_terms)
+                + self._dist_weight*sum(dist_terms)
+                + self._reg_weight*sum(reg_terms))/batch_size
 
     @staticmethod
     def _calc_loss_params(data, labels, cluster_ids):
