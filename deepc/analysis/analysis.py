@@ -27,13 +27,11 @@ class Analysis:
         if self._epoch_loss:
             self._epoch_loss_curve.append(sum(self._epoch_loss) / len(self._epoch_loss))
         self._epoch_loss = []
-        self.plot()
 
     def _end_iteration(self):
         if self._iteration_loss:
             self._iteration_loss_curve.append(sum(self._iteration_loss) / len(self._iteration_loss))
         self._iteration_loss = []
-        self.plot()
 
     def step(self, loss=None, epoch_end=False):
         if loss is not None:

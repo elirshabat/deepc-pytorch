@@ -29,6 +29,7 @@ def get_args():
     parser.add_argument("--resize", "-r", type=int, nargs=2, default=[240, 320],
                         help="tuple of (height, width) to resize the input images")
     parser.add_argument("--epoch-limit", "-l", type=int, default=1e9)
+    parser.add_argument("--interactive", "-i", action='store_true')
 
     return parser.parse_args()
 
@@ -37,6 +38,9 @@ if __name__ == '__main__':
 
     args = get_args()
     print(args)
+
+    if args.interactive:
+        plt.ion()
 
     logger = logging.getLogger('train')
     logger.setLevel(logging.INFO)
@@ -85,7 +89,8 @@ if __name__ == '__main__':
     dev_stats_file = os.path.join(stats_dir, def_stats_file_name)
 
     train_instance = Train(model, loss_func, train_set, dev_set=dev_set, params_path=parameters_file, num_workers=0,
-                           train_stats_path=train_stats_file, dev_stats_path=dev_stats_file, iteration_size=5)
+                           train_stats_path=train_stats_file, dev_stats_path=dev_stats_file, iteration_size=5,
+                           interactive=args.interactive)
 
     start_time = time.time()
     num_epochs = args.epoch_limit
