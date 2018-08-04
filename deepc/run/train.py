@@ -65,7 +65,7 @@ class Train:
 
                 local_data, local_labels, cluster_ids = sample['image'], sample['labels'], sample['cluster_ids']
 
-                pred = self._model(local_data.permute([0, 3, 1, 2]).float())
+                pred = self._model(local_data.permute([0, 3, 1, 2]))
                 loss = self._loss_func(pred.squeeze(0), local_labels.squeeze(0), cluster_ids.squeeze(0))
 
                 self._model.zero_grad()
@@ -107,7 +107,7 @@ class Train:
 
                         local_data, local_labels, cluster_ids = sample['image'], sample['labels'], sample['cluster_ids']
 
-                        pred = self._model(local_data.permute([0, 3, 1, 2]).float())
+                        pred = self._model(local_data.permute([0, 3, 1, 2]))
                         loss = self._loss_func(pred.squeeze(0), local_labels.squeeze(0), cluster_ids.squeeze(0))
 
                         self._logger.info(f"dev step - epoch:{epoch}, loss:{loss}")

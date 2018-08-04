@@ -59,7 +59,7 @@ class CocoDataset(Dataset):
             sample = self._transform(sample)
 
         if torch.cuda.device_count() > 0:
-            sample['image'] = sample['image'].cuda()
+            sample['image'] = sample['image'].float().cuda()
             sample['labels'] = sample['labels'].cuda()
             sample['cluster_ids'] = sample['cluster_ids'].cuda()
 
@@ -74,8 +74,7 @@ class CocoDataset(Dataset):
         """
         original_img = Image.open(file_path)
         original_np_img = np.array(original_img)
-        original_torch_img = torch.tensor(original_np_img, dtype=torch.uint8)
-        return original_torch_img
+        return torch.tensor(original_np_img, dtype=torch.uint8)
 
     def _anns_to_tensor(self, img, anns):
         """
