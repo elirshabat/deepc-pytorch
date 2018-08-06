@@ -20,18 +20,18 @@ class Resize:
         :param sample: Sample returned from dataset.
         :return: The resized sample.
         """
-        img, labels = self.resize_tensor_image(sample['image']), self.resize_tensor_image(sample['labels'])
+        img = self.resize_tensor_image(sample['image'].type(torch.uint8)).type(sample['image'].dtype)
+        labels = self.resize_tensor_image(sample['labels'])
 
         return {'image': img,
                 'labels': labels,
-                'cluster_ids': labels.unique()}
+                'cluster_ids': labels.unique().type(sample['cluster_ids'].dtype)}
 
     def resize_tensor_image(self, tensor):
         """
-        Resize a tensor that represent an image.
+        Resize a uint8 tensor that represent an image.
         """
         original_np_img = np.array(tensor)
         img = Image.fromarray(original_np_img).resize((self._w, self._h), Image.NEAREST)
         np_img = np.array(img)
-        torch_img = torch.tensor(np_img, dtype=torch.uint8)
-        return torch_img
+        return torch.tensor(np_img, dtype=torch.uint8)

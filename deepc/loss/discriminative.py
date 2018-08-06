@@ -62,7 +62,7 @@ class DiscriminativeLoss(torch.nn.Module):
         :return: loss parameters
         """
         out_params = dict()
-        out_params['cluster_ids'] = cluster_ids
+        out_params['cluster_ids'] = cluster_ids[cluster_ids >= 0].type(torch.uint8)
         out_params['num_clusters'] = len(out_params['cluster_ids'])
         out_params['cluster_params'] = dict()
 
