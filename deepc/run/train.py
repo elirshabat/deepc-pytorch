@@ -4,7 +4,6 @@ from deepc.analysis import analysis
 import itertools
 import os.path
 import logging
-from deepc.datasets.collate import collate_fn
 
 
 class Train:
@@ -30,9 +29,9 @@ class Train:
         self._train_set = train_set
         self._dev_set = dev_set
         self._train_set_loader = DataLoader(self._train_set, shuffle=True, num_workers=num_workers,
-                                            batch_size=batch_size, collate_fn=collate_fn)
+                                            batch_size=batch_size)
         self._dev_set_loader = DataLoader(self._dev_set, shuffle=True, num_workers=num_workers,
-                                          batch_size=batch_size, collate_fn=collate_fn) if self._dev_set else None
+                                          batch_size=batch_size) if self._dev_set else None
         self._interactive = interactive
 
         if optimizer:
@@ -66,10 +65,10 @@ class Train:
 
             for sample in self._train_set_loader:
 
-                local_data, local_labels, cluster_ids = sample['image'], sample['labels'], sample['cluster_ids']
+                local_data, local_labels = sample['image'], sample['labels']
 
                 pred = self._model(local_data.permute([0, 3, 1, 2]))
-                loss = self._loss_func(pred, local_labels, cluster_ids)
+                loss = self._loss_func(pred, local_labels)
 
                 self._model.zero_grad()
                 loss.backward()
@@ -108,10 +107,10 @@ class Train:
 
                     for sample in self._dev_set_loader:
 
-                        local_data, local_labels, cluster_ids = sample['image'], sample['labels'], sample['cluster_ids']
+                        local_data, local_labels = sample['image'], sample['labels']
 
                         pred = self._model(local_data.permute([0, 3, 1, 2]))
-                        loss = self._loss_func(pred, local_labels, cluster_ids)
+                        loss = self._loss_func(pred, local_labels)
 
                         self._logger.info(f"dev step - epoch:{epoch}, loss:{loss}")
                         dev_stats.step(loss=loss)

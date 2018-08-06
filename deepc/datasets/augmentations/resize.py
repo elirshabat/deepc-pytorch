@@ -23,9 +23,7 @@ class Resize:
         img = self.resize_tensor_image(sample['image'].type(torch.uint8)).type(sample['image'].dtype)
         labels = self.resize_tensor_image(sample['labels'])
 
-        return {'image': img,
-                'labels': labels,
-                'cluster_ids': labels.unique().type(sample['cluster_ids'].dtype)}
+        return {'image': img, 'labels': labels}
 
     def resize_tensor_image(self, tensor):
         """

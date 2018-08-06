@@ -26,7 +26,7 @@ class DiscriminativeLoss(torch.nn.Module):
         self._dist_weight = dist_weight
         self._reg_weight = reg_weight
 
-    def forward(self, data, labels, cluster_ids):
+    def forward(self, data, labels):
         """
         Compute the loss of the given data with respect to the labels.
         :param data: data points
@@ -38,7 +38,7 @@ class DiscriminativeLoss(torch.nn.Module):
 
         for i in range(batch_size):
 
-            loss_params = self._calc_loss_params(data[i, :, :, :], labels[i, :, :], cluster_ids[i, :])
+            loss_params = self._calc_loss_params(data[i, :, :, :], labels[i, :, :])
 
             if loss_params['num_clusters'] <= 1:
                 var_terms.append(torch.tensor(0, device=data.device, dtype=torch.float))
@@ -54,7 +54,7 @@ class DiscriminativeLoss(torch.nn.Module):
                 + self._reg_weight*sum(reg_terms))/batch_size
 
     @staticmethod
-    def _calc_loss_params(data, labels, cluster_ids):
+    def _calc_loss_params(data, labels):
         """
         Calculate parameters needed to compute the loss.
         :param data: input data points
@@ -62,7 +62,7 @@ class DiscriminativeLoss(torch.nn.Module):
         :return: loss parameters
         """
         out_params = dict()
-        out_params['cluster_ids'] = cluster_ids[cluster_ids >= 0].type(torch.uint8)
+        out_params['cluster_ids'] = labels.unique()
         out_params['num_clusters'] = len(out_params['cluster_ids'])
         out_params['cluster_params'] = dict()
 
