@@ -7,6 +7,7 @@ import argparse
 import warnings
 import logging
 import sys
+import multiprocessing as mp
 
 curr_dir = os.path.abspath(os.path.dirname(__file__))
 repo_dir = os.path.join(curr_dir, "..")
@@ -42,6 +43,8 @@ if __name__ == '__main__':
 
     args = get_args()
     print(args)
+
+    mp.set_start_method('spawn')
 
     if args.interactive:
         plt.ion()
