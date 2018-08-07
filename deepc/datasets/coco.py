@@ -57,10 +57,6 @@ class CocoDataset(Dataset):
         if self._transform:
             sample = self._transform(sample)
 
-        if torch.cuda.device_count() > 0:
-            sample['image'] = sample['image'].cuda()
-            sample['labels'] = sample['labels'].cuda()
-
         return sample
 
     @staticmethod
