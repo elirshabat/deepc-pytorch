@@ -51,6 +51,8 @@ class Train:
         TODO: document
         :return:
         """
+        cuda_available = torch.cuda.device_count() > 0
+
         train_stats = analysis.load(self._train_stats_path) if os.path.isfile(
             self._train_stats_path) else analysis.Analysis("Train", iteration_size=self._iteration_size)
 
@@ -65,7 +67,10 @@ class Train:
 
             for sample in self._train_set_loader:
 
-                local_data, local_labels = sample['image'].cuda(), sample['labels'].cuda()
+                if cuda_available:
+                    local_data, local_labels = sample['image'].cuda(), sample['labels'].cuda()
+                else:
+                    local_data, local_labels = sample['image'], sample['labels']
 
                 pred = self._model(local_data.permute([0, 3, 1, 2]))
                 loss = self._loss_func(pred, local_labels)
@@ -107,7 +112,10 @@ class Train:
 
                     for sample in self._dev_set_loader:
 
-                        local_data, local_labels = sample['image'].cuda(), sample['labels'].cuda()
+                        if cuda_available:
+                            local_data, local_labels = sample['image'].cuda(), sample['labels'].cuda()
+                        else:
+                            local_data, local_labels = sample['image'], sample['labels']
 
                         pred = self._model(local_data.permute([0, 3, 1, 2]))
                         loss = self._loss_func(pred, local_labels)
