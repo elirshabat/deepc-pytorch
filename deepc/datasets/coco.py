@@ -70,10 +70,10 @@ class CocoDataset(Dataset):
         original_np_img = np.array(original_img)
 
         # Handle 1D images
-        if len(original_img.shape) == 2:
-            tmp = original_img
-            original_img = np.zeros([original_img.shape[0], original_img.shape[1], 3])
-            original_img[:, :, 0] = tmp
+        if len(original_np_img.shape) == 2:
+            tmp = original_np_img
+            original_np_img = np.zeros([original_np_img.shape[0], original_np_img.shape[1], 3])
+            original_np_img[:, :, 0] = tmp
 
         # Handle RGBA images
         if original_np_img.shape[2] == 4:
