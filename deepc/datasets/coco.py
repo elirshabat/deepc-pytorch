@@ -68,9 +68,17 @@ class CocoDataset(Dataset):
         """
         original_img = Image.open(file_path)
         original_np_img = np.array(original_img)
-        print(f"Image shape: {original_np_img.shape}")
+
+        # Handle 1D images
+        if len(original_img.shape) == 2:
+            tmp = original_img
+            original_img = np.zeros([original_img.shape[0], original_img.shape[1], 3])
+            original_img[:, :, 0] = tmp
+
+        # Handle RGBA images
         if original_np_img.shape[2] == 4:
             original_np_img = original_np_img[:, :, 0:3]
+
         return torch.tensor(original_np_img, dtype=torch.float)
 
     def _anns_to_tensor(self, img, anns):
