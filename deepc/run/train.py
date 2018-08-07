@@ -87,7 +87,7 @@ class Train:
                 train_stats.step(loss=loss)
                 stats_step_time = time.time()
 
-                print(f"Times: pred:{pred_time - start_time} loss:{pred_time - loss_time} backward:{backward_time - loss_time} stats_step:{stats_step_time - backward_time}")
+                print(f"Times: pred:{pred_time - start_time} loss:{pred_time - loss_time} backward:{loss_time - backward_time} stats_step:{stats_step_time - backward_time}")
 
                 if self._iteration_size and t_train % self._iteration_size == 0:
 
