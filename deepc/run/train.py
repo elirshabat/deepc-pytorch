@@ -4,6 +4,7 @@ from deepc.analysis import analysis
 import itertools
 import os.path
 import logging
+from deepc.analysis.show import show_distance_matrix
 
 
 class Train:
@@ -80,6 +81,8 @@ class Train:
                 self._model.zero_grad()
                 loss.backward()
                 self._optimizer.step()
+
+                show_distance_matrix(local_data, local_labels, pred)
 
                 t_train += 1
 
