@@ -28,10 +28,14 @@ class Train:
         self._loss_func = loss_func
         self._train_set = train_set
         self._dev_set = dev_set
+        self._cuda_available = torch.cuda.device_count() > 0
         self._train_set_loader = DataLoader(self._train_set, shuffle=True, num_workers=num_workers,
-                                            batch_size=batch_size)
-        self._dev_set_loader = DataLoader(self._dev_set, shuffle=True, num_workers=num_workers,
-                                          batch_size=batch_size) if self._dev_set else None
+                                            batch_size=batch_size, pin_memory=self._cuda_available)
+        if self._dev_set:
+            self._dev_set_loader = DataLoader(self._dev_set, shuffle=True, num_workers=num_workers,
+                                              batch_size=batch_size, pin_memory=self._cuda_available)
+        else:
+            self._dev_set_loader = None
         self._interactive = interactive
 
         if optimizer:
@@ -51,8 +55,6 @@ class Train:
         TODO: document
         :return:
         """
-        cuda_available = torch.cuda.device_count() > 0
-
         train_stats = analysis.load(self._train_stats_path) if os.path.isfile(
             self._train_stats_path) else analysis.Analysis("Train", iteration_size=self._iteration_size)
 
@@ -67,7 +69,7 @@ class Train:
 
             for sample in self._train_set_loader:
 
-                if cuda_available:
+                if self._cuda_available:
                     local_data, local_labels = sample['image'].cuda(), sample['labels'].cuda()
                 else:
                     local_data, local_labels = sample['image'], sample['labels']
@@ -112,7 +114,7 @@ class Train:
 
                     for sample in self._dev_set_loader:
 
-                        if cuda_available:
+                        if self._cuda_available:
                             local_data, local_labels = sample['image'].cuda(), sample['labels'].cuda()
                         else:
                             local_data, local_labels = sample['image'], sample['labels']
