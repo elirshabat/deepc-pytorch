@@ -100,7 +100,7 @@ if __name__ == '__main__':
 
     train_instance = Train(model, loss_func, train_set, dev_set=dev_set, params_path=parameters_file,
                            num_workers=args.num_workers, train_stats_path=train_stats_file,
-                           dev_stats_path=dev_stats_file, iteration_size=5, interactive=args.interactive,
+                           dev_stats_path=dev_stats_file, iteration_size=args.iter_size, interactive=args.interactive,
                            batch_size=args.batch_size)
 
     start_time = time.time()
