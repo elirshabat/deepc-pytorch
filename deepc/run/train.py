@@ -92,6 +92,7 @@ class Train:
                 if self._iteration_size and t_train % self._iteration_size == 0:
 
                     self._logger.info(f"train iteration - avg_loss:{sum_loss/self._iteration_size}")
+                    sum_loss = 0.0
 
                     if self._params_path:
                         torch.save(self._model.state_dict(), self._params_path)
@@ -138,6 +139,7 @@ class Train:
                         if self._iteration_size and t_dev % self._iteration_size == 0:
 
                             self._logger.info(f"dev iteration - avg_loss:{sum_loss/self._iteration_size}")
+                            sum_loss = 0.0
 
                             if self._dev_stats_path:
                                 analysis.save(dev_stats, self._dev_stats_path)
