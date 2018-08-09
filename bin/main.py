@@ -36,6 +36,7 @@ def get_args():
     parser.add_argument("--num-workers", "-n", type=int, default=0, help="number of workers to use for reading data")
     parser.add_argument("--iter-size", "-t", type=int, help="iteration size for saving stats and parameters")
     parser.add_argument("--parameters", "-p", help="path to model's parameters file")
+    parser.add_argument("--debug-level", "-d", default="INFO")
 
     return parser.parse_args()
 
@@ -51,7 +52,7 @@ if __name__ == '__main__':
         plt.ion()
 
     logger = logging.getLogger('train')
-    logger.setLevel(logging.INFO)
+    logger.setLevel(args.debug_level)
     handler = logging.FileHandler('train.log')
     formatter = logging.Formatter(f"%(asctime)s : %(levelname)s : {args.model} : %(message)s")
     handler.setFormatter(formatter)
