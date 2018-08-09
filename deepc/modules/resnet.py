@@ -104,9 +104,9 @@ class ResnetMIS(torch.nn.Module):
         enc3 = self.br1024(self.gcn1024(layer3))
         enc4 = self.br2048(self.gcn2048(layer4))
 
-        dec1 = self.br1(torch.nn.functional.upsample(enc4, size=enc3.size()[2:], mode='bilinear') + enc3)
-        dec2 = self.br2(torch.nn.functional.upsample(dec1, enc2.size()[2:], mode='bilinear') + enc2)
-        dec3 = self.br3(torch.nn.functional.upsample(dec2, enc1.size()[2:], mode='bilinear') + enc1)
+        dec1 = self.br1(torch.nn.functional.interpolate(enc4, size=enc3.size()[2:], mode='bilinear') + enc3)
+        dec2 = self.br2(torch.nn.functional.interpolate(dec1, size=enc2.size()[2:], mode='bilinear') + enc2)
+        dec3 = self.br3(torch.nn.functional.interpolate(dec2, size=enc1.size()[2:], mode='bilinear') + enc1)
         dec4 = self.br4(self.deconv1(dec3))
 
         score_map = self.br5(self.deconv2(dec4))
