@@ -67,6 +67,8 @@ class Train:
             if epoch > max_epochs:
                 break
 
+            sum_loss = 0.0
+
             for sample in self._train_set_loader:
 
                 if self._cuda_available:
@@ -82,11 +84,14 @@ class Train:
                 self._optimizer.step()
 
                 t_train += 1
+                sum_loss += loss.item()
 
-                self._logger.info(f"train step - epoch:{epoch}, loss:{loss.item()}")
+                self._logger.debug(f"train step - epoch:{epoch}, loss:{loss.item()}")
                 train_stats.step(loss=loss.item())
 
                 if self._iteration_size and t_train % self._iteration_size == 0:
+
+                    self._logger.info(f"train iteration - avg_loss:{sum_loss/self._iteration_size}")
 
                     if self._params_path:
                         torch.save(self._model.state_dict(), self._params_path)
@@ -110,6 +115,8 @@ class Train:
 
             if self._dev_set:
 
+                sum_loss = 0.0
+
                 with torch.no_grad():
 
                     for sample in self._dev_set_loader:
@@ -122,10 +129,15 @@ class Train:
                         pred = self._model(local_data.permute([0, 3, 1, 2]))
                         loss = self._loss_func(pred, local_labels)
 
-                        self._logger.info(f"dev step - epoch:{epoch}, loss:{loss.item()}")
+                        t_dev += 1
+                        sum_loss += loss.item()
+
+                        self._logger.debug(f"dev step - epoch:{epoch}, loss:{loss.item()}")
                         dev_stats.step(loss=loss.item())
 
                         if self._iteration_size and t_dev % self._iteration_size == 0:
+
+                            self._logger.info(f"dev iteration - avg_loss:{sum_loss/self._iteration_size}")
 
                             if self._dev_stats_path:
                                 analysis.save(dev_stats, self._dev_stats_path)
