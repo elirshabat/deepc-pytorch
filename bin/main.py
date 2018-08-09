@@ -76,11 +76,13 @@ if __name__ == '__main__':
         warnings.warn("Parameters file not found - creating new one")
 
     if args.model == 'resnet':
-        if parameters_file and os.path.isfile(parameters_file):
-            model = ResnetMIS(pretrained_resnet=False, out_channels=out_channels)
-            model.load_state_dict(torch.load(parameters_file, map_location='cpu'))
+        if parameters_file:
+            if os.path.isfile(parameters_file):
+                model = ResnetMIS(pretrained_resnet=False, out_channels=out_channels)
+                model.load_state_dict(torch.load(parameters_file, map_location='cpu'))
+            else:
+                model = ResnetMIS(pretrained_resnet=True, out_channels=out_channels)
         else:
-            model = ResnetMIS(pretrained_resnet=True, out_channels=out_channels)
             parameters_file = f"{args.model}_parameters-out_dim_{out_channels}_h_{image_height}_w_{image_width}.pkl"
 
     loss_func = DiscriminativeLoss()
