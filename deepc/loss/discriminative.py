@@ -105,7 +105,7 @@ class DiscriminativeLoss(torch.nn.Module):
         sum_dist = sum([(2.0*self._delta_dist - (centers[i] - centers[j]).norm()).clamp(0)**2
                         for i in range(len(centers))
                         for j in range(len(centers))
-                        if i != j])
+                        if i < j])
 
         return sum_dist/(loss_params['num_clusters']*(loss_params['num_clusters'] - 1))
 
