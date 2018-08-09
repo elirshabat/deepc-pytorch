@@ -4,7 +4,6 @@ from deepc.analysis import analysis
 import itertools
 import os.path
 import logging
-from deepc.analysis.show import show_distance_matrix
 
 
 class Train:
@@ -82,12 +81,10 @@ class Train:
                 loss.backward()
                 self._optimizer.step()
 
-                show_distance_matrix(local_data, local_labels, pred)
-
                 t_train += 1
 
-                self._logger.info(f"train step - epoch:{epoch}, loss:{loss}")
-                train_stats.step(loss=loss)
+                self._logger.info(f"train step - epoch:{epoch}, loss:{loss.item()}")
+                train_stats.step(loss=loss.item())
 
                 if self._iteration_size and t_train % self._iteration_size == 0:
 
@@ -125,8 +122,8 @@ class Train:
                         pred = self._model(local_data.permute([0, 3, 1, 2]))
                         loss = self._loss_func(pred, local_labels)
 
-                        self._logger.info(f"dev step - epoch:{epoch}, loss:{loss}")
-                        dev_stats.step(loss=loss)
+                        self._logger.info(f"dev step - epoch:{epoch}, loss:{loss.item()}")
+                        dev_stats.step(loss=loss.item())
 
                         if self._iteration_size and t_dev % self._iteration_size == 0:
 

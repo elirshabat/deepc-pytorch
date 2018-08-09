@@ -35,6 +35,7 @@ def get_args():
     parser.add_argument("--batch-size", "-b", type=int, default=1, help="batch size to use")
     parser.add_argument("--num-workers", "-n", type=int, default=0, help="number of workers to use for reading data")
     parser.add_argument("--iter-size", "-t", type=int, help="iteration size for saving stats and parameters")
+    parser.add_argument("--parameters", "-p", help="path to model's parameters file")
 
     return parser.parse_args()
 
@@ -64,21 +65,23 @@ if __name__ == '__main__':
         train_anns_file = paths['coco_train2014_annotations']
         dev_img_dir = paths['coco_dev2014_images']
         dev_anns_file = paths['coco_dev2014_annotations']
-        params_dir = paths['parameters_dir']
         stats_dir = paths['stats_dir']
 
     out_channels = args.out_dim
     image_height, image_width = args.resize[0], args.resize[1]
 
-    params_file_name = f"{args.model}_parameters-out_dim_{out_channels}_h_{image_height}_w_{image_width}.pkl"
-    parameters_file = os.path.join(params_dir, params_file_name)
+    parameters_file = args.parameters
+    if parameters_file and not os.path.isfile(parameters_file):
+        raise ValueError("Parameters file not found")
 
     if args.model == 'resnet':
-        if os.path.isfile(parameters_file):
+        if parameters_file:
             model = ResnetMIS(pretrained_resnet=False, out_channels=out_channels)
-            model.load_state_dict(torch.load(parameters_file))
         else:
             model = ResnetMIS(pretrained_resnet=True, out_channels=out_channels)
+
+    if parameters_file:
+        model.load_state_dict(torch.load(parameters_file, map_location='cpu'))
 
     loss_func = DiscriminativeLoss()
 

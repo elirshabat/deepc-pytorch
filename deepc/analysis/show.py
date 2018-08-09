@@ -1,12 +1,20 @@
 import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import axes3d
 
 
-def show_distance_matrix(image_tensor, labels_tensor, y_tensor):
-    img, l, y = image_tensor.numpy(), labels_tensor.numpy(), y_tensor.detach().numpy()
+def show_embeddings_3d(image_tensor, labels_tensor, y_tensor):
+    img, l, y = image_tensor.numpy(), labels_tensor.numpy(), y_tensor.detach().numpy().transpose((0, 2, 3, 1))
     ids = np.unique(l)
 
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.view_init(90, 0)
+
     for i in ids:
-        cluster_points = img[l == i]
-        center = cluster_points.mean(axis=0)
-        distances = np.linalg.norm(cluster_points - center, 2, axis=1)
-        # TODO: continue
+        cluster_points = y[l == i]
+        alpha = 0.1 if i == 0 else None
+        ax.scatter(cluster_points[:, 0], cluster_points[:, 1], cluster_points[:, 2], alpha=alpha)
