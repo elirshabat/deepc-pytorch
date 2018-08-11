@@ -8,6 +8,7 @@ import warnings
 import logging
 import sys
 import multiprocessing as mp
+from torchvision import transforms
 
 curr_dir = os.path.abspath(os.path.dirname(__file__))
 repo_dir = os.path.join(curr_dir, "..")
@@ -92,8 +93,10 @@ if __name__ == '__main__':
     else:
         warnings.warn("Operating without GPU")
 
-    train_set = CocoDataset(train_anns_file, train_img_dir, augmentations.Resize(image_height, image_width))
-    dev_set = CocoDataset(dev_anns_file, dev_img_dir, augmentations.Resize(image_height, image_width))
+    composed_transforms = transforms.Compose([augmentations.Resize(image_height, image_width),
+                                              augmentations.Normalize()])
+    train_set = CocoDataset(train_anns_file, train_img_dir, transform=composed_transforms)
+    dev_set = CocoDataset(dev_anns_file, dev_img_dir, transform=composed_transforms)
 
     train_stats_file_name = f"{args.model}_train_stats-out_dim_{out_channels}_h_{image_height}_w_{image_width}.pkl"
     def_stats_file_name = f"{args.model}_def_stats-out_dim_{out_channels}_h_{image_height}_w_{image_width}.pkl"

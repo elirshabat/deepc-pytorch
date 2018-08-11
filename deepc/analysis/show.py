@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
 import pandas
+from deepc.datasets.augmentations.normalize import Normalize
 
 
 def show_embeddings_3d(image_tensor, labels_tensor, y_tensor):
@@ -34,7 +35,7 @@ def embeddings_parallel_coordinates(y_tensor, labels_tensor):
     pandas.plotting.parallel_coordinates(data, 'label')
 
 
-def show_sample(image, labels):
+def show_sample_data(image, labels):
     plt.figure()
     if image is not None:
         plt.imshow(image.cpu())
@@ -42,10 +43,13 @@ def show_sample(image, labels):
         plt.imshow(labels.cpu(), alpha=0.5)
 
 
-def show_samples_batch(sample, ignore_image=False, ignore_labels=False):
-    image_batch, labels_batch = sample['image'].cpu(), sample['labels'].cpu()
+def show_samples_batch(sample, ignore_image=False, ignore_labels=False, is_normalized=False):
+    if is_normalized:
+        transform = Normalize(reverse=True)
+        sample = transform(sample)
+    image_batch, labels_batch = sample['image'], sample['labels']
     batch_size = image_batch.shape[0]
     for i in range(batch_size):
         image = None if ignore_image else image_batch[i, :, :, :]
         labels = None if ignore_labels else labels_batch[i, :, :]
-        show_sample(image, labels)
+        show_sample_data(image, labels)
