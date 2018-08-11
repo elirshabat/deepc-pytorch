@@ -1,0 +1,4 @@
+Affinity Propagation
+Mean Shift
+Hierarchical clustering
+DBSCAN
