@@ -1,0 +1,2 @@
+COCO train-2014 metrics:
+{'mean': 8.023942113719, 'std': 7.099242435824629, 'max': 76, 'min': 1, 'median': 5, 'median095': 23}
