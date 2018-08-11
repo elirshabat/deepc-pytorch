@@ -32,3 +32,20 @@ def embeddings_parallel_coordinates(y_tensor, labels_tensor):
 
     plt.figure()
     pandas.plotting.parallel_coordinates(data, 'label')
+
+
+def show_sample(image, labels):
+    plt.figure()
+    if image is not None:
+        plt.imshow(image.cpu())
+    if labels is not None:
+        plt.imshow(labels.cpu(), alpha=0.5)
+
+
+def show_samples_batch(sample, ignore_image=False, ignore_labels=False):
+    image_batch, labels_batch = sample['image'].cpu(), sample['labels'].cpu()
+    batch_size = image_batch.shape[0]
+    for i in range(batch_size):
+        image = None if ignore_image else image_batch[i, :, :, :]
+        labels = None if ignore_labels else labels_batch[i, :, :]
+        show_sample(image, labels)
