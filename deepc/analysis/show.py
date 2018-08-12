@@ -53,3 +53,14 @@ def show_samples_batch(sample, ignore_image=False, ignore_labels=False, is_norma
         image = None if ignore_image else image_batch[i, :, :, :]
         labels = None if ignore_labels else labels_batch[i, :, :]
         show_sample_data(image, labels)
+
+
+def show_outcomes(image_tensor, true_labels_tensor, computed_labels_array):
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
+    np_image = image_tensor.cpu().numpy()*255
+    np_image = np_image.astype(np.uint8)
+    ax1.imshow(np_image)
+    ax2.imshow(np_image)
+    ax3.imshow(np_image)
+    ax2.imshow(true_labels_tensor.cpu().numpy(), alpha=0.5)
+    ax3.imshow(np.reshape(computed_labels_array.astype(np.uint8), true_labels_tensor.cpu().numpy().shape), alpha=0.5)

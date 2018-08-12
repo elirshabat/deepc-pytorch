@@ -1,5 +1,6 @@
 from torch.utils.data import DataLoader
 import numpy as np
+from sklearn.cluster import KMeans
 
 
 def calc_dataset_metrics(dataset, num_workers=0):
@@ -16,3 +17,11 @@ def calc_dataset_metrics(dataset, num_workers=0):
     instance_metrics['median095'] = np_num_instances[int(len(np_num_instances)*0.95)]
 
     return instance_metrics
+
+
+def kmeans(x, labels):
+    x = x.transpose((1, 2, 0))
+    true_labels, x = labels.reshape(-1), x.reshape((-1, x.shape[2]))
+    n_clusters = len(np.unique(true_labels))
+    y = KMeans(n_clusters=n_clusters, n_init=20, precompute_distances=True).fit(x)
+    return y.labels_, y.cluster_centers_
