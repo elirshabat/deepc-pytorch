@@ -40,7 +40,7 @@ def get_args():
     parser.add_argument("--iter-size", "-t", type=int, help="iteration size for saving stats and parameters")
     parser.add_argument("--parameters", "-p", help="path to model's parameters file")
     parser.add_argument("--debug-level", "-d", default="INFO")
-    parser.add_argument("--learning-rate", "--lr", type=float, default=1e-4, help="learning-rate")
+    parser.add_argument("--lr", "--learning-rate", type=float, default=1e-4, help="learning-rate")
     parser.add_argument("--no-dev", action="store_true", help="train without dev-set")
 
     return parser.parse_args()
