@@ -11,6 +11,8 @@ import sys
 import multiprocessing as mp
 from torchvision import transforms
 import torch.backends.cudnn as cudnn
+from torch.utils.data import DataLoader
+import itertools
 
 curr_dir = os.path.abspath(os.path.dirname(__file__))
 repo_dir = os.path.join(curr_dir, "..")
@@ -54,6 +56,8 @@ if __name__ == '__main__':
 
     mp.set_start_method('spawn')
 
+    cuda_available = (torch.cuda.device_count() > 0)
+
     if args.interactive:
         plt.ion()
 
@@ -93,7 +97,7 @@ if __name__ == '__main__':
 
     loss_func = DiscriminativeLoss()
 
-    if torch.cuda.device_count() > 0:
+    if cuda_available:
         model = model.cuda()
         loss_func = loss_func.cuda()
         cudnn.benchmark = True
@@ -110,14 +114,68 @@ if __name__ == '__main__':
     train_stats_file = os.path.join(stats_dir, train_stats_file_name)
     dev_stats_file = os.path.join(stats_dir, def_stats_file_name)
 
-    train_instance = Train(model, loss_func, train_set, dev_set=dev_set, params_path=parameters_file,
-                           num_workers=args.num_workers, train_stats_path=train_stats_file,
-                           dev_stats_path=dev_stats_file, iteration_size=args.iter_size, interactive=args.interactive,
-                           batch_size=args.batch_size, learning_rate=args.lr)
+    # TODO: load parameters
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+
+    # TODO: add checkpoints to args
+    print(f"Loading checkpoint '{args.checkpoints} ...'")
+    checkpoint = torch.load(args.checkpoints)
+    start_epoch, start_iteration = checkpoint['epoch'], checkpoint['iteration']
+    epochs_loss_curve, iteration_loss_curve = checkpoint['epochs_loss_curve'], checkpoint['iteration_loss_curve']
+    model.load_state_dict(checkpoint['model_params'])
+    optimizer.load_state_dict(checkpoint['optimizer_params'])
+    print(f"Loaded checkpoint '{args.checkpoints}':\n    epoch:{start_epoch} iteration:{start_iteration}")
+
+    train_loader = DataLoader(train_set, shuffle=True, num_workers=args.num_workers,
+                              batch_size=args.batch_size, pin_memory=cuda_available)
+
+    # TODO: add argument log_freq
+    train_instance = Train(train_loader, model, loss_func, optimizer, cpu=(not cuda_available), log_freq=args.log_freq)
+
+    # TODO: validation instance
+    # dev_loader = DataLoader(dev_set, shuffle=True, num_workers=args.num_workers,
+    #                         batch_size=args.batch_size, pin_memory=cuda_available)
+
+
+    # train_instance = Train(model, loss_func, train_set, dev_set=dev_set, params_path=parameters_file,
+    #                        num_workers=args.num_workers, train_stats_path=train_stats_file,
+    #                        dev_stats_path=dev_stats_file, iteration_size=args.iter_size, interactive=args.interactive,
+    #                        batch_size=args.batch_size, learning_rate=args.lr, optimizer=optimizer)
 
     start_time = time.time()
-    num_epochs = args.epochs
-    train_instance.run(max_epochs=num_epochs)
+    iteration_counter = itertools.count()
+
+    for epoch in range(start_epoch, args.epochs):
+        epoch_loss = 0.0
+        iteration = next(iteration_counter)
+
+        train_instance.run(epoch, iteration, args.iter_size)
+
+        # TODO: implement
+        # self._logger.info(f"train iteration - avg_loss:{sum_loss/self._iteration_size}")
+        # iteration_loss = 0.0
+        #
+        # if self._params_path:
+        #     torch.save(self._model.state_dict(), self._params_path)
+        #
+        # if self._train_stats_path:
+        #     analysis.save(train_stats, self._train_stats_path)
+        #
+        # if self._interactive:
+        #     train_stats.plot()
+        #
+        # train_stats.step(epoch_end=True)
+        #
+        # if self._params_path:
+        #     torch.save(self._model.state_dict(), self._params_path)
+        #
+        # if self._train_stats_path:
+        #     analysis.save(train_stats, self._train_stats_path)
+        #
+        # if self._interactive:
+        #     train_stats.plot()
+
+
     end_time = time.time()
 
     print(f"Execution time for {num_epochs} epoches: {end_time - start_time}")

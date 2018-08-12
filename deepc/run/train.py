@@ -8,149 +8,86 @@ import logging
 
 class Train:
 
-    def __init__(self, model, loss_func, train_set, dev_set=None, num_workers=0, learning_rate=1e-4,
-                 optimizer=None, params_path=None, train_stats_path=None, dev_stats_path=None, iteration_size=None,
-                 interactive=False, batch_size=1):
-        """
-        Tr
-        :param model:
-        :param loss_func:
-        :param train_set:
-        :param dev_set:
-        :param num_workers:
-        :param learning_rate:
-        :param optimizer:
-        :param params_path:
-        :param train_stats_path:
-        :param dev_stats_path:
-        """
+    def __init__(self, loader, model, criterion, optimizer, cpu=False, log_freq=1):
         self._model = model
-        self._loss_func = loss_func
-        self._train_set = train_set
-        self._dev_set = dev_set
+        # TODO: rename
+        self._criterion = criterion
         self._cuda_available = torch.cuda.device_count() > 0
-        self._train_set_loader = DataLoader(self._train_set, shuffle=True, num_workers=num_workers,
-                                            batch_size=batch_size, pin_memory=self._cuda_available)
-        if self._dev_set:
-            self._dev_set_loader = DataLoader(self._dev_set, shuffle=True, num_workers=num_workers,
-                                              batch_size=batch_size, pin_memory=self._cuda_available)
-        else:
-            self._dev_set_loader = None
-        self._interactive = interactive
-
-        if optimizer:
-            self._optimizer = optimizer
-        else:
-            self._optimizer = torch.optim.Adam(self._model.parameters(), lr=learning_rate)
-
-        self._params_path = params_path
-        self._train_stats_path = train_stats_path
-        self._dev_stats_path = dev_stats_path
-        self._iteration_size = iteration_size
-
+        self._loader = loader
+        self._optimizer = optimizer
         self._logger = logging.getLogger('train')
+        self._cpu = cpu
+        self._log_freq = log_freq
 
-    def run(self, max_epochs=float('inf')):
-        """
-        TODO: document
-        :return:
-        """
-        train_stats = analysis.load(self._train_stats_path) if os.path.isfile(
-            self._train_stats_path) else analysis.Analysis("Train", iteration_size=self._iteration_size)
+    def run(self, epoch, iteration, iteration_size):
+        t_train, iteration_loss = 0, 0.0
+        while t_train < iteration_size:
+            try:
+                sample = next(self._loader)
+                t_train += 1
 
-        dev_stats = analysis.load(self._dev_stats_path) if os.path.isfile(
-            self._dev_stats_path) else analysis.Analysis("Dev", iteration_size=self._iteration_size)
-
-        t_train, t_dev = 0, 0
-
-        for epoch in itertools.count():
-            if epoch > max_epochs:
-                break
-
-            sum_loss = 0.0
-
-            for sample in self._train_set_loader:
-
-                if self._cuda_available:
-                    local_data, local_labels = sample['image'].cuda(), sample['labels'].cuda()
+                if not self._cpu:
+                    data_batch, labels_batch = sample['image'].cuda(), sample['labels'].cuda()
                 else:
-                    local_data, local_labels = sample['image'], sample['labels']
+                    data_batch, labels_batch = sample['image'], sample['labels']
 
-                pred = self._model(local_data.permute([0, 3, 1, 2]))
-                loss = self._loss_func(pred, local_labels)
+                pred_batch = self._model(data_batch.permute([0, 3, 1, 2]))
+                loss = self._criterion(pred_batch, labels_batch)
 
                 self._model.zero_grad()
                 loss.backward()
                 self._optimizer.step()
 
                 t_train += 1
-                sum_loss += loss.item()
+                iteration_loss += loss.item()
 
-                self._logger.debug(f"train step - epoch:{epoch}, loss:{loss.item()}")
-                train_stats.step(loss=loss.item())
+                if t_train % self._log_freq == 0:
+                    self._logger.info(
+                        f"Train step - epoch:{epoch} iteration:{iteration} mini-batch:{t_train} loss:{loss.item()}")
 
-                if self._iteration_size and t_train % self._iteration_size == 0:
+            except StopIteration:
+                epoch += 1
 
-                    self._logger.info(f"train iteration - avg_loss:{sum_loss/self._iteration_size}")
-                    sum_loss = 0.0
+        return epoch, iteration_loss/iteration_size
 
-                    if self._params_path:
-                        torch.save(self._model.state_dict(), self._params_path)
-
-                    if self._train_stats_path:
-                        analysis.save(train_stats, self._train_stats_path)
-
-                    if self._interactive:
-                        train_stats.plot()
-
-            train_stats.step(epoch_end=True)
-
-            if self._params_path:
-                torch.save(self._model.state_dict(), self._params_path)
-
-            if self._train_stats_path:
-                analysis.save(train_stats, self._train_stats_path)
-
-            if self._interactive:
-                train_stats.plot()
-
-            if self._dev_set:
-
-                sum_loss = 0.0
-
-                with torch.no_grad():
-
-                    for sample in self._dev_set_loader:
-
-                        if self._cuda_available:
-                            local_data, local_labels = sample['image'].cuda(), sample['labels'].cuda()
-                        else:
-                            local_data, local_labels = sample['image'], sample['labels']
-
-                        pred = self._model(local_data.permute([0, 3, 1, 2]))
-                        loss = self._loss_func(pred, local_labels)
-
-                        t_dev += 1
-                        sum_loss += loss.item()
-
-                        self._logger.debug(f"dev step - epoch:{epoch}, loss:{loss.item()}")
-                        dev_stats.step(loss=loss.item())
-
-                        if self._iteration_size and t_dev % self._iteration_size == 0:
-
-                            self._logger.info(f"dev iteration - avg_loss:{sum_loss/self._iteration_size}")
-                            sum_loss = 0.0
-
-                            if self._dev_stats_path:
-                                analysis.save(dev_stats, self._dev_stats_path)
-
-                            if self._interactive:
-                                dev_stats.plot()
-
-                    dev_stats.step(epoch_end=True)
-
-                    if self._dev_stats_path:
-                        analysis.save(dev_stats, self._dev_stats_path)
-
-                    if self._interactive:
-                        dev_stats.plot()
+        # TODO: implement in Validation
+        # if self._dev_set:
+        #
+        #     iteration_loss = 0.0
+        #
+        #     with torch.no_grad():
+        #
+        #         for sample in self._dev_set_loader:
+        #
+        #             if self._cuda_available:
+        #                 data_batch, labels_batch = sample['image'].cuda(), sample['labels'].cuda()
+        #             else:
+        #                 data_batch, labels_batch = sample['image'], sample['labels']
+        #
+        #             pred_batch = self._model(data_batch.permute([0, 3, 1, 2]))
+        #             loss = self._criterion(pred_batch, labels_batch)
+        #
+        #             t_dev += 1
+        #             iteration_loss += loss.item()
+        #
+        #             self._logger.debug(f"dev step - epoch:{epoch}, loss:{loss.item()}")
+        #             dev_stats.step(loss=loss.item())
+        #
+        #             if self._iteration_size and t_dev % self._iteration_size == 0:
+        #
+        #                 self._logger.info(f"dev iteration - avg_loss:{sum_loss/self._iteration_size}")
+        #                 iteration_loss = 0.0
+        #
+        #                 if self._dev_stats_path:
+        #                     analysis.save(dev_stats, self._dev_stats_path)
+        #
+        #                 if self._interactive:
+        #                     dev_stats.plot()
+        #
+        #         dev_stats.step(epoch_end=True)
+        #
+        #         if self._dev_stats_path:
+        #             analysis.save(dev_stats, self._dev_stats_path)
+        #
+        #         if self._interactive:
+        #             dev_stats.plot()
