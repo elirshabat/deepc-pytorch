@@ -114,7 +114,7 @@ if __name__ == '__main__':
                            batch_size=args.batch_size, learning_rate=args.lr)
 
     start_time = time.time()
-    num_epochs = args.epoch_limit
+    num_epochs = args.epochs
     train_instance.run(max_epochs=num_epochs)
     end_time = time.time()
 
