@@ -10,6 +10,7 @@ import logging
 import sys
 import multiprocessing as mp
 from torchvision import transforms
+import torch.backends.cudnn as cudnn
 
 curr_dir = os.path.abspath(os.path.dirname(__file__))
 repo_dir = os.path.join(curr_dir, "..")
@@ -95,6 +96,7 @@ if __name__ == '__main__':
     if torch.cuda.device_count() > 0:
         model = model.cuda()
         loss_func = loss_func.cuda()
+        cudnn.benchmark = True
     else:
         warnings.warn("Operating without GPU")
 
