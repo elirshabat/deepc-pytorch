@@ -23,14 +23,15 @@ from deepc.analysis import analysis
 
 
 def get_args():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Run deepc training")
 
     parser.add_argument("paths_file", help="path to paths configuration file")
     parser.add_argument("--out-dim", type=int, default=3, help="dimension of network outputs")
-    parser.add_argument("--model", default="resnet", help="the model to use")
+    parser.add_argument("--arch", default="resnet", choices=['resnet'], help="the model to use")
     parser.add_argument("--resize", "-r", type=int, nargs=2, default=[240, 320],
                         help="tuple of (height, width) to resize the input images")
-    parser.add_argument("--epoch-limit", "-l", type=int, default=1e9, help="maximum number of epochs to run")
+    parser.add_argument("--epochs", "--epoch-limit", "-l", type=int, default=1e9,
+                        help="maximum number of epochs to run")
     parser.add_argument("--interactive", "-i", action='store_true',
                         help="whether or not to show debug info interactively")
     parser.add_argument("--batch-size", "-b", type=int, default=1, help="batch size to use")
@@ -38,7 +39,7 @@ def get_args():
     parser.add_argument("--iter-size", "-t", type=int, help="iteration size for saving stats and parameters")
     parser.add_argument("--parameters", "-p", help="path to model's parameters file")
     parser.add_argument("--debug-level", "-d", default="INFO")
-    parser.add_argument("--lr", type=float, default=1e-4, help="learning-rate")
+    parser.add_argument("--learning-rate", "--lr", type=float, default=1e-4, help="learning-rate")
     parser.add_argument("--no-dev", action="store_true", help="train without dev-set")
 
     return parser.parse_args()
@@ -92,6 +93,7 @@ if __name__ == '__main__':
 
     if torch.cuda.device_count() > 0:
         model = model.cuda()
+        loss_func = loss_func.cuda()
     else:
         warnings.warn("Operating without GPU")
 
