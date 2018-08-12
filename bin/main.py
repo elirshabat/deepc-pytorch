@@ -38,6 +38,7 @@ def get_args():
     parser.add_argument("--iter-size", "-t", type=int, help="iteration size for saving stats and parameters")
     parser.add_argument("--parameters", "-p", help="path to model's parameters file")
     parser.add_argument("--debug-level", "-d", default="INFO")
+    parser.add_argument("--lr", type=float, default=1e-4, help="learning-rate")
 
     return parser.parse_args()
 
@@ -106,7 +107,7 @@ if __name__ == '__main__':
     train_instance = Train(model, loss_func, train_set, dev_set=dev_set, params_path=parameters_file,
                            num_workers=args.num_workers, train_stats_path=train_stats_file,
                            dev_stats_path=dev_stats_file, iteration_size=args.iter_size, interactive=args.interactive,
-                           batch_size=args.batch_size)
+                           batch_size=args.batch_size, learning_rate=args.lr)
 
     start_time = time.time()
     num_epochs = args.epoch_limit
