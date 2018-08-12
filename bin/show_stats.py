@@ -1,8 +1,11 @@
 import os.path
 import sys
-from deepc.analysis import analysis
 import matplotlib.pyplot as plt
 import argparse
+curr_dir = os.path.abspath(os.path.dirname(__file__))
+repo_dir = os.path.join(curr_dir, "..")
+sys.path.append(repo_dir)
+from deepc.analysis import analysis
 
 if __name__ == '__main__':
 
