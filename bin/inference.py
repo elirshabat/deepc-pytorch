@@ -13,7 +13,8 @@ from deepc.modules.resnet import ResnetMIS
 from deepc.loss.discriminative import DiscriminativeLoss
 from deepc.datasets.coco import CocoDataset
 from deepc.datasets import augmentations
-from deepc.analysis.show import embeddings_parallel_coordinates
+from deepc.analysis.show import embeddings_parallel_coordinates, show_outcomes
+from deepc.analysis.metrics import kmeans
 
 
 if __name__ == '__main__':
@@ -63,7 +64,12 @@ if __name__ == '__main__':
             if i > args.num_samples:
                 break
             i += 1
+
             y = model(sample['image'].permute([0, 3, 1, 2]))
             embeddings_parallel_coordinates(y.squeeze(0), sample['labels'].squeeze(0))
+
+            computed_clusters, cluster_centers = kmeans(y.squeeze(0).cpu().numpy(),
+                                                        sample['labels'].squeeze(0).cpu().numpy())
+            show_outcomes(sample['image'].squeeze(0), sample['labels'].squeeze(0), computed_clusters)
 
     plt.show()
