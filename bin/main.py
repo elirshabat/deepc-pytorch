@@ -39,6 +39,7 @@ def get_args():
     parser.add_argument("--parameters", "-p", help="path to model's parameters file")
     parser.add_argument("--debug-level", "-d", default="INFO")
     parser.add_argument("--lr", type=float, default=1e-4, help="learning-rate")
+    parser.add_argument("--no-dev", action="store_true", help="train without dev-set")
 
     return parser.parse_args()
 
@@ -97,7 +98,7 @@ if __name__ == '__main__':
     composed_transforms = transforms.Compose([augmentations.Resize(image_height, image_width),
                                               augmentations.Normalize()])
     train_set = CocoDataset(train_anns_file, train_img_dir, transform=composed_transforms)
-    dev_set = CocoDataset(dev_anns_file, dev_img_dir, transform=composed_transforms)
+    dev_set = None if args.no_dev else CocoDataset(dev_anns_file, dev_img_dir, transform=composed_transforms)
 
     train_stats_file_name = f"{args.model}_train_stats-out_dim_{out_channels}_h_{image_height}_w_{image_width}.pkl"
     def_stats_file_name = f"{args.model}_def_stats-out_dim_{out_channels}_h_{image_height}_w_{image_width}.pkl"
