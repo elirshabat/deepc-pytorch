@@ -1,4 +1,5 @@
 import os.path
+import os.path
 import yaml
 import torch
 import matplotlib.pyplot as plt
@@ -58,7 +59,7 @@ if __name__ == '__main__':
     logger = logging.getLogger('train')
     logger.setLevel(args.debug_level)
     handler = logging.FileHandler('train.log')
-    formatter = logging.Formatter(f"%(asctime)s : %(levelname)s : {args.model} : %(message)s")
+    formatter = logging.Formatter(f"%(asctime)s : %(levelname)s : {args.arch} : %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     streamer = logging.StreamHandler()
@@ -79,7 +80,7 @@ if __name__ == '__main__':
     if parameters_file and not os.path.isfile(parameters_file):
         warnings.warn("Parameters file not found - creating new one")
 
-    if args.model == 'resnet':
+    if args.arch == 'resnet':
         if parameters_file:
             if os.path.isfile(parameters_file):
                 model = ResnetMIS(pretrained_resnet=False, out_channels=out_channels)
@@ -87,7 +88,7 @@ if __name__ == '__main__':
             else:
                 model = ResnetMIS(pretrained_resnet=True, out_channels=out_channels)
         else:
-            parameters_file = f"{args.model}_parameters-out_dim_{out_channels}_h_{image_height}_w_{image_width}.pkl"
+            parameters_file = f"{args.arch}_parameters-out_dim_{out_channels}_h_{image_height}_w_{image_width}.pkl"
 
     loss_func = DiscriminativeLoss()
 
@@ -102,8 +103,8 @@ if __name__ == '__main__':
     train_set = CocoDataset(train_anns_file, train_img_dir, transform=composed_transforms)
     dev_set = None if args.no_dev else CocoDataset(dev_anns_file, dev_img_dir, transform=composed_transforms)
 
-    train_stats_file_name = f"{args.model}_train_stats-out_dim_{out_channels}_h_{image_height}_w_{image_width}.pkl"
-    def_stats_file_name = f"{args.model}_def_stats-out_dim_{out_channels}_h_{image_height}_w_{image_width}.pkl"
+    train_stats_file_name = f"{args.arch}_train_stats-out_dim_{out_channels}_h_{image_height}_w_{image_width}.pkl"
+    def_stats_file_name = f"{args.arch}_def_stats-out_dim_{out_channels}_h_{image_height}_w_{image_width}.pkl"
     train_stats_file = os.path.join(stats_dir, train_stats_file_name)
     dev_stats_file = os.path.join(stats_dir, def_stats_file_name)
 
