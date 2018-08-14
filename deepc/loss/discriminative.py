@@ -5,7 +5,7 @@ import numpy as np
 class DiscriminativeLoss(torch.nn.Module):
 
     def __init__(self, var_weight=1.0, dist_weight=1.0, reg_weight=1.0,
-                 delta_var=None, delta_dist=None):
+                 delta_var=None, delta_dist=None, cuda=True):
         """
         Initialize the loss function.
         :param delta_var: hinge value form the variance term
@@ -16,15 +16,23 @@ class DiscriminativeLoss(torch.nn.Module):
         """
         super().__init__()
 
-        auto_delta_dist = 2
         auto_delta_var = 1
+        delta_var = delta_var if delta_var else auto_delta_var
+        self._delta_var = torch.tensor(delta_var, dtype=torch.float)
 
-        self._delta_var = delta_var if delta_var else auto_delta_var
-        self._delta_dist = delta_dist if delta_dist else auto_delta_dist
+        auto_delta_dist = 2
+        delta_dist = delta_dist if delta_dist else auto_delta_dist
+        self._delta_dist = torch.tensor(delta_dist, dtype=torch.float)
 
-        self._var_weight = var_weight
-        self._dist_weight = dist_weight
-        self._reg_weight = reg_weight
+        self._var_weight = torch.tensor(var_weight, dtype=torch.float)
+        self._dist_weight = torch.tensor(dist_weight, dtype=torch.float)
+        self._reg_weight = torch.tensor(reg_weight, dtype=torch.float)
+
+        if cuda:
+            self._delta_var, self._delta_dist = self._delta_var.cuda(), self._delta_dist.cuda()
+            self._var_weight = self._var_weight.cuda()
+            self._dist_weight = self._dist_weight.cuda()
+            self._reg_weight = self._reg_weight.cuda()
 
     def forward(self, data, labels):
         """
@@ -33,25 +41,48 @@ class DiscriminativeLoss(torch.nn.Module):
         :param labels: ground truth of the clusters
         :return: the loss (scalar value)
         """
-        batch_size = data.shape[0]
-        var_terms, dist_terms, reg_terms = [], [], []
+        batch_size, d, h, w = data.shape
+        for batch_index in range(batch_size):
+            X, L = data[batch_index, :, :, :].view(d, -1), labels[batch_index, :, :].view(-1)
+            n = X.shape[1]
+            K = L.unique()
+            vars, mu = [], []
+            for k in K:
+                L_k = (L == k).unsqueeze(0).repeat([d, 1]).float()
+                X_k = X * L_k
+                mu_k = X_k.sum(1) / n
+                mu.append(mu_k)
+                var_k = (((X_k - mu_k.unsqueeze(1) * L_k).norm(dim=0) - self._delta_var).clamp(0) ** 2).sum() / n
+                vars.append(var_k)
 
-        for i in range(batch_size):
+        MU = torch.stack(mu)
+        dist = [((self._delta_dist - (mu[k] - MU).norm(dim=1)).clamp(0) ** 2 / (len(K) - 1)).sum() / 2 for k in K]
 
-            loss_params = self._calc_loss_params(data[i, :, :, :], labels[i, :, :])
+        # MU.norm(dim=1) #TODO: var term
+        #
+        # sum_term = sum([(loss_params['cluster_params'][c_id]['center'].norm() - np.sqrt(n_dims)).clamp(0)
+        #                 for c_id in loss_params['cluster_params']])
+        # sum_term / loss_params['num_clusters']
 
-            if loss_params['num_clusters'] <= 1:
-                var_terms.append(torch.tensor(0, device=data.device, dtype=torch.float))
-                dist_terms.append(torch.tensor(0, device=data.device, dtype=torch.float))
-                reg_terms.append(torch.tensor(0, device=data.device, dtype=torch.float))
-            else:
-                var_terms.append(self._calc_var_term(loss_params))
-                dist_terms.append(self._calc_dist_term(loss_params))
-                reg_terms.append(self._calc_reg_term(loss_params, data.shape[1]))
-
-        return (self._var_weight*sum(var_terms)
-                + self._dist_weight*sum(dist_terms)
-                + self._reg_weight*sum(reg_terms))/batch_size
+        # batch_size = data.shape[0]
+        # var_terms, dist_terms, reg_terms = [], [], []
+        #
+        # for i in range(batch_size):
+        #
+        #     loss_params = self._calc_loss_params(data[i, :, :, :], labels[i, :, :])
+        #
+        #     if loss_params['num_clusters'] <= 1:
+        #         var_terms.append(torch.tensor(0, device=data.device, dtype=torch.float))
+        #         dist_terms.append(torch.tensor(0, device=data.device, dtype=torch.float))
+        #         reg_terms.append(torch.tensor(0, device=data.device, dtype=torch.float))
+        #     else:
+        #         var_terms.append(self._calc_var_term(loss_params))
+        #         dist_terms.append(self._calc_dist_term(loss_params))
+        #         reg_terms.append(self._calc_reg_term(loss_params, data.shape[1]))
+        #
+        # return (self._var_weight*sum(var_terms)
+        #         + self._dist_weight*sum(dist_terms)
+        #         + self._reg_weight*sum(reg_terms))/batch_size
 
     @staticmethod
     def _calc_loss_params(data, labels):

@@ -137,7 +137,7 @@ if __name__ == '__main__':
         model = model.cuda()
 
     # Create loss function:
-    loss_func = DiscriminativeLoss()
+    loss_func = DiscriminativeLoss(cuda=cuda_available)
     if cuda_available:
         loss_func = loss_func.cuda()
 
