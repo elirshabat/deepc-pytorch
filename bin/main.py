@@ -21,6 +21,7 @@ from deepc.datasets.coco import CocoDataset
 from deepc.datasets import augmentations
 from deepc.loss.discriminative import DiscriminativeLoss
 from deepc.run.train import Train
+from deepc.analysis import AverageMeter
 
 
 def get_args():
@@ -171,7 +172,7 @@ if __name__ == '__main__':
     while train_instance.epoch < start_train_epoch + args.epochs:
         step = next(steps_counter)
 
-        iteration_loss, epoch_done = train_instance.run()
+        iteration_loss, epoch_done, avg_times = train_instance.run()
 
         checkpoints['train_iteration'] += 1
         checkpoints['train_epoch'] = train_instance.epoch
@@ -183,6 +184,7 @@ if __name__ == '__main__':
 
         logger.info(f"Train iteration - epoch:{train_instance.epoch} "
                     f"iteration:{train_instance.iteration} avg-loss:{iteration_loss}")
+        logger.debug("Iteration times - " + " ".join([f"{key}:{avg_times[key]}" for key in avg_times]))
 
         if epoch_done:
             epoch_avg_loss = sum(epoch_losses)/len(epoch_losses)

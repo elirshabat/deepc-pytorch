@@ -1,9 +1,7 @@
 import torch
-from torch.utils.data import DataLoader
-from deepc.analysis import analysis
-import itertools
-import os.path
 import logging
+from deepc.analysis import AverageMeter
+import time
 
 
 class Train:
@@ -30,27 +28,49 @@ class Train:
         else:
             local_iteration_size = len(self._loader)//self._loader.batch_size
 
+        time_meter_keys = ['batch', 'cuda', 'model', 'criterion', 'backward', 'optimizer', 'loss_item', 'log']
+        time_meters = {key: AverageMeter() for key in time_meter_keys}
+
         for t in range(local_iteration_size):
+
             try:
+                start_time = time.time()
                 batch_index, sample = next(self._data_enumerator)
+                time_meters['batch'].update(time.time() - start_time)
 
                 if not self._cpu:
+                    start_time = time.time()
                     data_batch, labels_batch = sample['image'].cuda(), sample['labels'].cuda()
+                    time_meters['cuda'].update(time.time() - start_time)
                 else:
                     data_batch, labels_batch = sample['image'], sample['labels']
 
+                start_time = time.time()
                 pred_batch = self._model(data_batch.permute([0, 3, 1, 2]))
-                loss = self._criterion(pred_batch, labels_batch)
+                time_meters['model'].update(time.time() - start_time)
 
+                start_time = time.time()
+                loss = self._criterion(pred_batch, labels_batch)
+                time_meters['criterion'].update(time.time() - start_time)
+
+                start_time = time.time()
                 self._model.zero_grad()
                 loss.backward()
+                time_meters['backward'].update(time.time() - start_time)
+
+                start_time = time.time()
                 self._optimizer.step()
+                time_meters['optimizer'].update(time.time() - start_time)
 
+                start_time = time.time()
                 total_loss += loss.item()
+                time_meters['loss_item'].update(time.time() - start_time)
 
+                start_time = time.time()
                 self._logger.debug(
                     f"Train step - epoch:{self.epoch} iteration:{self.iteration} batch:{batch_index} "
                     f"t:{t}/{local_iteration_size} loss:{loss.item()}")
+                time_meters['log'].update(time.time() - start_time)
 
             except StopIteration:
                 self.epoch += 1
@@ -60,7 +80,9 @@ class Train:
 
         self.iteration += 1
 
-        return total_loss/local_iteration_size, epoch_done
+        avg_times = {key: time_meters[key].avg for key in time_meter_keys}
+
+        return total_loss/local_iteration_size, epoch_done, avg_times
 
         # TODO: implement in Validation
         # if self._dev_set:
