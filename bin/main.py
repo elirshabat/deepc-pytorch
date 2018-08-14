@@ -1,8 +1,6 @@
 import os.path
-import os.path
 import yaml
 import torch
-import matplotlib.pyplot as plt
 import time
 import argparse
 import warnings
@@ -23,30 +21,46 @@ from deepc.datasets.coco import CocoDataset
 from deepc.datasets import augmentations
 from deepc.loss.discriminative import DiscriminativeLoss
 from deepc.run.train import Train
-from deepc.analysis import analysis
 
 
 def get_args():
     parser = argparse.ArgumentParser(description="Run deepc training")
 
     parser.add_argument("paths_file", help="path to paths configuration file")
-    parser.add_argument("--out-dim", type=int, default=3, help="dimension of network outputs")
+    parser.add_argument("--dataset-name", "--dataset", default='coco2014', choices=['coco2014', 'coco2017'],
+                        help="name of dataset to use")
     parser.add_argument("--arch", default="resnet", choices=['resnet'], help="the model to use")
+    parser.add_argument("--out-dims", "-d", type=int, default=5, help="dimension of network outputs")
     parser.add_argument("--resize", "-r", type=int, nargs=2, default=[240, 320],
                         help="tuple of (height, width) to resize the input images")
-    parser.add_argument("--epochs", "--epoch-limit", "-l", type=int, default=1e9,
+    parser.add_argument("--epochs", "--epoch-limit", "-e", type=int, default=1e9,
                         help="maximum number of epochs to run")
-    parser.add_argument("--interactive", "-i", action='store_true',
-                        help="whether or not to show debug info interactively")
-    parser.add_argument("--batch-size", "-b", type=int, default=1, help="batch size to use")
-    parser.add_argument("--num-workers", "-n", type=int, default=0, help="number of workers to use for reading data")
-    parser.add_argument("--iter-size", "-t", type=int, help="iteration size for saving stats and parameters")
-    parser.add_argument("--parameters", "-p", help="path to model's parameters file")
-    parser.add_argument("--debug-level", "-d", default="INFO")
+    parser.add_argument("--batch-size", "-b", type=int, default=16, help="batch size to use")
+    parser.add_argument("--num-workers", "-n", type=int, default=2, help="number of workers to use for reading data")
+    parser.add_argument("--iter-size", "-T", type=int, default=100,
+                        help="iteration size for saving checkpoints")
+    parser.add_argument("--checkpoints", "-c", help="path to checkpoints file")
+    parser.add_argument("--log-level", "--ll", default="INFO", choices=['DEBUG', 'INFO'], help="logging level")
     parser.add_argument("--lr", "--learning-rate", type=float, default=1e-4, help="learning-rate")
     parser.add_argument("--no-dev", action="store_true", help="train without dev-set")
+    parser.add_argument("--pre-trained", action='store_true',
+                        help="indicate whether or not to use pre-trained model in case not checkpoints were given")
+    parser.add_argument("--save-freq", "-s", type=int, default=0,
+                        help="frequency in iterations for saving checkpoints (0 means every epoch)")
 
     return parser.parse_args()
+
+
+def create_logger(name, level, arch):
+    local_logger = logging.getLogger(name)
+    local_logger.setLevel(level)
+    handler = logging.FileHandler(f"{name}_{arch}.log")
+    formatter = logging.Formatter(f"%(asctime)s : %(levelname)s : {arch} : %(message)s")
+    handler.setFormatter(formatter)
+    local_logger.addHandler(handler)
+    streamer = logging.StreamHandler()
+    local_logger.addHandler(streamer)
+    return local_logger
 
 
 if __name__ == '__main__':
@@ -54,136 +68,134 @@ if __name__ == '__main__':
     args = get_args()
     print(args)
 
+    # Initial configurations:
     mp.set_start_method('spawn')
-
     cuda_available = (torch.cuda.device_count() > 0)
-
-    if args.interactive:
-        plt.ion()
-
-    logger = logging.getLogger('train')
-    logger.setLevel(args.debug_level)
-    handler = logging.FileHandler('train.log')
-    formatter = logging.Formatter(f"%(asctime)s : %(levelname)s : {args.arch} : %(message)s")
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    streamer = logging.StreamHandler()
-    logger.addHandler(streamer)
-
-    with open(args.paths_file, 'r') as f:
-        paths = yaml.load(f)
-        train_img_dir = paths['coco_train2014_images']
-        train_anns_file = paths['coco_train2014_annotations']
-        dev_img_dir = paths['coco_dev2014_images']
-        dev_anns_file = paths['coco_dev2014_annotations']
-        stats_dir = paths['stats_dir']
-
-    out_channels = args.out_dim
-    image_height, image_width = args.resize[0], args.resize[1]
-
-    parameters_file = args.parameters
-    if parameters_file and not os.path.isfile(parameters_file):
-        warnings.warn("Parameters file not found - creating new one")
-
-    if args.arch == 'resnet':
-        if parameters_file:
-            if os.path.isfile(parameters_file):
-                model = ResnetMIS(pretrained_resnet=False, out_channels=out_channels)
-                model.load_state_dict(torch.load(parameters_file, map_location='cpu'))
-            else:
-                model = ResnetMIS(pretrained_resnet=True, out_channels=out_channels)
-        else:
-            parameters_file = f"{args.arch}_parameters-out_dim_{out_channels}_h_{image_height}_w_{image_width}.pkl"
-
-    loss_func = DiscriminativeLoss()
-
     if cuda_available:
-        model = model.cuda()
-        loss_func = loss_func.cuda()
         cudnn.benchmark = True
     else:
         warnings.warn("Operating without GPU")
+    logger = create_logger('train', args.log_level, args.arch)
+    with open(args.paths_file, 'r') as f:
+        paths = yaml.load(f)
 
-    composed_transforms = transforms.Compose([augmentations.Resize(image_height, image_width),
-                                              augmentations.Normalize()])
-    train_set = CocoDataset(train_anns_file, train_img_dir, transform=composed_transforms)
-    dev_set = None if args.no_dev else CocoDataset(dev_anns_file, dev_img_dir, transform=composed_transforms)
+    # Create train dataset:
+    train_data_dir = paths[f'{args.dataset_name}_train_data']
+    train_dataset_file = paths[f'{args.dataset_name}_train_config']
+    train_set_transforms = []
+    if args.resize:
+        train_set_transforms.append(augmentations.Resize(args.resize[0], args.resize[1]))
+    train_set_transforms.append(augmentations.Normalize())
+    train_set = CocoDataset(train_dataset_file, train_data_dir, transform=transforms.Compose(train_set_transforms))
 
-    train_stats_file_name = f"{args.arch}_train_stats-out_dim_{out_channels}_h_{image_height}_w_{image_width}.pkl"
-    def_stats_file_name = f"{args.arch}_def_stats-out_dim_{out_channels}_h_{image_height}_w_{image_width}.pkl"
-    train_stats_file = os.path.join(stats_dir, train_stats_file_name)
-    dev_stats_file = os.path.join(stats_dir, def_stats_file_name)
+    # Create dev dataset:
+    if not args.no_dev:
+        dev_data_dir = paths[f'{args.dataset_name}_dev_data']
+        dev_dataset_file = paths[f'{args.dataset_name}_dev_config']
+        dev_set_transforms = []
+        if args.resize:
+            dev_set_transforms.append(augmentations.Resize(args.resize[0], args.resize[1]))
+        dev_set_transforms.append(augmentations.Normalize())
+        dev_set = CocoDataset(dev_dataset_file, dev_data_dir, transform=transforms.Compose(dev_set_transforms))
+    else:
+        warnings.warn("Training without dev set")
+        dev_set = None
 
-    # TODO: load parameters
+    # Load checkpoints:
+    if not args.checkpoints:
+        args.checkpoints = f"{args.arch}_checkpoints.pkl"
+        if os.path.isfile(args.checkpoints):
+            warnings.warn(f"Using existing checkpoints file with default filename: '{args.checkpoints}'")
+        else:
+            warnings.warn(f"Using new checkpoints file with default filename: '{args.checkpoints}'")
+    if os.path.isfile(args.checkpoints):
+        checkpoints = torch.load(args.checkpoints, map_location='cpu')
+        print(f"Loaded checkpoints from '{args.checkpoints}'")
+    else:
+        checkpoints = {
+            'train_epoch': 0,
+            'train_iteration': 0,
+            'dev_epoch': 0,
+            'dev_iteration': 0,
+            'epochs_loss_curve': [],
+            'iteration_loss_curve': [],
+            'model_params': None,
+            'optimizer_params': None
+        }
+
+    # Create the model:
+    if args.arch == 'resnet':
+        if checkpoints['model_params'] is not None:
+            model = ResnetMIS(pretrained_resnet=False, out_channels=args.out_dims)
+            model.load_state_dict(checkpoints['model_params'])
+        elif args.pre_trained:
+            model = ResnetMIS(pretrained_resnet=True, out_channels=args.out_dims)
+        else:
+            model = ResnetMIS(pretrained_resnet=False, out_channels=args.out_dims)
+    if cuda_available:
+        model = model.cuda()
+
+    # Create loss function:
+    loss_func = DiscriminativeLoss()
+    if cuda_available:
+        loss_func = loss_func.cuda()
+
+    # Create optimizer:
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    if checkpoints['optimizer_params'] is not None:
+        optimizer.load_state_dict(checkpoints['optimizer_params'])
 
-    # TODO: add checkpoints to args
-    print(f"Loading checkpoint '{args.checkpoints} ...'")
-    checkpoint = torch.load(args.checkpoints)
-    start_epoch, start_iteration = checkpoint['epoch'], checkpoint['iteration']
-    epochs_loss_curve, iteration_loss_curve = checkpoint['epochs_loss_curve'], checkpoint['iteration_loss_curve']
-    model.load_state_dict(checkpoint['model_params'])
-    optimizer.load_state_dict(checkpoint['optimizer_params'])
-    print(f"Loaded checkpoint '{args.checkpoints}':\n    epoch:{start_epoch} iteration:{start_iteration}")
-
+    # Create data loaders:
     train_loader = DataLoader(train_set, shuffle=True, num_workers=args.num_workers,
                               batch_size=args.batch_size, pin_memory=cuda_available)
+    if dev_set is not None:
+        dev_loader = DataLoader(dev_set, shuffle=True, num_workers=args.num_workers,
+                                batch_size=args.batch_size, pin_memory=cuda_available)
+    else:
+        dev_loader = None
 
-    # TODO: add argument log_freq
-    train_instance = Train(train_loader, model, loss_func, optimizer, cpu=(not cuda_available), log_freq=args.log_freq)
+    # Run training:
+    start_train_epoch, start_train_iteration = checkpoints['train_epoch'], checkpoints['train_iteration']
 
-    # TODO: validation instance
-    # dev_loader = DataLoader(dev_set, shuffle=True, num_workers=args.num_workers,
-    #                         batch_size=args.batch_size, pin_memory=cuda_available)
+    train_instance = Train(train_loader, model, loss_func, optimizer, cpu=(not cuda_available),
+                           start_epoch=start_train_epoch, start_iteration=start_train_iteration,
+                           iteration_size=args.iter_size)
 
+    train_epoch_len = len(train_set)//(args.batch_size*args.iter_size)
 
-    # train_instance = Train(model, loss_func, train_set, dev_set=dev_set, params_path=parameters_file,
-    #                        num_workers=args.num_workers, train_stats_path=train_stats_file,
-    #                        dev_stats_path=dev_stats_file, iteration_size=args.iter_size, interactive=args.interactive,
-    #                        batch_size=args.batch_size, learning_rate=args.lr, optimizer=optimizer)
+    start_training_time = time.time()
+    epoch_losses = []
 
-    start_time = time.time()
-    iteration_counter = itertools.count()
+    steps_counter = itertools.count(1)
 
-    for epoch in range(start_epoch, args.epochs):
-        epoch_loss = 0.0
-        iteration = next(iteration_counter)
+    while train_instance.epoch < start_train_epoch + args.epochs:
+        step = next(steps_counter)
 
-        train_instance.run(epoch, iteration, args.iter_size)
+        iteration_loss, epoch_done = train_instance.run()
 
-        # TODO: implement
-        # self._logger.info(f"train iteration - avg_loss:{sum_loss/self._iteration_size}")
-        # iteration_loss = 0.0
-        #
-        # if self._params_path:
-        #     torch.save(self._model.state_dict(), self._params_path)
-        #
-        # if self._train_stats_path:
-        #     analysis.save(train_stats, self._train_stats_path)
-        #
-        # if self._interactive:
-        #     train_stats.plot()
-        #
-        # train_stats.step(epoch_end=True)
-        #
-        # if self._params_path:
-        #     torch.save(self._model.state_dict(), self._params_path)
-        #
-        # if self._train_stats_path:
-        #     analysis.save(train_stats, self._train_stats_path)
-        #
-        # if self._interactive:
-        #     train_stats.plot()
+        checkpoints['train_iteration'] += 1
+        checkpoints['train_epoch'] = train_instance.epoch
+        checkpoints['iteration_loss_curve'].append(iteration_loss)
+        checkpoints['model_params'] = model.state_dict()
+        checkpoints['optimizer_params'] = optimizer.state_dict()
 
+        epoch_losses.append(iteration_loss)
 
-    end_time = time.time()
+        logger.info(f"Train iteration - epoch:{train_instance.epoch} "
+                    f"iteration:{train_instance.iteration} avg-loss:{iteration_loss}")
 
-    print(f"Execution time for {num_epochs} epoches: {end_time - start_time}")
+        if epoch_done:
+            epoch_avg_loss = sum(epoch_losses)/len(epoch_losses)
+            checkpoints['epochs_loss_curve'].append(epoch_avg_loss)
+            torch.save(checkpoints, args.checkpoints)
+            logger.info(f"Train epoch {train_instance.epoch} - avg-loss:{epoch_avg_loss}")
+            epoch_losses = []
+        else:
+            if args.save_freq and (step % args.save_freq) == 0:
+                torch.save(checkpoints, args.checkpoints)
 
-    train_stats = analysis.load(train_stats_file)
-    train_stats.plot()
+    logger.info(f"Done training - n_epochs:{args.epochs} time:{time.time() - start_training_time}")
 
-    dev_stats = analysis.load(dev_stats_file)
-    dev_stats.plot()
+    # TODO: validation
 
-    plt.show(block=True)
+    # TODO: show curves in case of interactive mode

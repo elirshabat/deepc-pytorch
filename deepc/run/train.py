@@ -8,23 +8,31 @@ import logging
 
 class Train:
 
-    def __init__(self, loader, model, criterion, optimizer, cpu=False, log_freq=1):
+    def __init__(self, loader, model, criterion, optimizer, cpu=False,
+                 start_epoch=0, start_iteration=0, iteration_size=None):
         self._model = model
-        # TODO: rename
         self._criterion = criterion
         self._cuda_available = torch.cuda.device_count() > 0
         self._loader = loader
+        self._data_enumerator = enumerate(self._loader)
         self._optimizer = optimizer
         self._logger = logging.getLogger('train')
         self._cpu = cpu
-        self._log_freq = log_freq
+        self.epoch = start_epoch
+        self.iteration = start_iteration
+        self.iteration_size = iteration_size
 
-    def run(self, epoch, iteration, iteration_size):
-        t_train, iteration_loss = 0, 0.0
-        while t_train < iteration_size:
+    def run(self):
+        total_loss = 0.0
+        epoch_done = False
+        if self.iteration_size is not None:
+            local_iteration_size = self.iteration_size
+        else:
+            local_iteration_size = len(self._loader)//self._loader.batch_size
+
+        for t in range(local_iteration_size):
             try:
-                sample = next(self._loader)
-                t_train += 1
+                batch_index, sample = next(self._data_enumerator)
 
                 if not self._cpu:
                     data_batch, labels_batch = sample['image'].cuda(), sample['labels'].cuda()
@@ -38,17 +46,21 @@ class Train:
                 loss.backward()
                 self._optimizer.step()
 
-                t_train += 1
-                iteration_loss += loss.item()
+                total_loss += loss.item()
 
-                if t_train % self._log_freq == 0:
-                    self._logger.info(
-                        f"Train step - epoch:{epoch} iteration:{iteration} mini-batch:{t_train} loss:{loss.item()}")
+                self._logger.debug(
+                    f"Train step - epoch:{self.epoch} iteration:{self.iteration} batch:{batch_index} "
+                    f"t:{t}/{local_iteration_size} loss:{loss.item()}")
 
             except StopIteration:
-                epoch += 1
+                self.epoch += 1
+                epoch_done = True
+                del self._data_enumerator
+                self._data_enumerator = enumerate(self._loader)
 
-        return epoch, iteration_loss/iteration_size
+        self.iteration += 1
+
+        return total_loss/local_iteration_size, epoch_done
 
         # TODO: implement in Validation
         # if self._dev_set:
