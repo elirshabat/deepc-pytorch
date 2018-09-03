@@ -11,6 +11,7 @@ from torchvision import transforms
 import torch.backends.cudnn as cudnn
 from torch.utils.data import DataLoader
 import itertools
+import cProfile
 
 curr_dir = os.path.abspath(os.path.dirname(__file__))
 repo_dir = os.path.join(curr_dir, "..")
@@ -48,6 +49,7 @@ def get_args():
                         help="indicate whether or not to use pre-trained model in case not checkpoints were given")
     parser.add_argument("--save-freq", "-s", type=int, default=0,
                         help="frequency in iterations for saving checkpoints (0 means every epoch)")
+    parser.add_argument("--profile", action='store_true', help="run single iteration with profiler")
 
     return parser.parse_args()
 
@@ -172,7 +174,10 @@ if __name__ == '__main__':
     while train_instance.epoch < start_train_epoch + args.epochs:
         step = next(steps_counter)
 
-        iteration_loss, epoch_done, avg_times = train_instance.run()
+        if args.profile:
+            cProfile.run('iteration_loss, epoch_done, avg_times = train_instance.run()', 'iteration')
+        else:
+            iteration_loss, epoch_done, avg_times = train_instance.run()
 
         checkpoints['train_iteration'] += 1
         checkpoints['train_epoch'] = train_instance.epoch
