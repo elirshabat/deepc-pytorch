@@ -19,10 +19,9 @@ sys.path.append(repo_dir)
 
 from deepc.modules.resnet import ResnetMIS
 from deepc.datasets.coco import CocoDataset
-from deepc.datasets import augmentations
+from deepc.datasets import augmentations, GradualDataset
 from deepc.loss.discriminative import DiscriminativeLoss
 from deepc.run.train import Train
-from deepc.analysis import AverageMeter
 
 
 def get_args():
@@ -50,6 +49,9 @@ def get_args():
     parser.add_argument("--save-freq", "-s", type=int, default=0,
                         help="frequency in iterations for saving checkpoints (0 means every epoch)")
     parser.add_argument("--profile", action='store_true', help="run single iteration with profiler")
+    parser.add_argument("--gradual", "-g", type=float,
+                        help="gradually increasing the dataset. "
+                             "The argument is the loss threshold after which the size of the dataset is doubled.")
 
     return parser.parse_args()
 
@@ -82,28 +84,6 @@ if __name__ == '__main__':
     with open(args.paths_file, 'r') as f:
         paths = yaml.load(f)
 
-    # Create train dataset:
-    train_data_dir = paths[f'{args.dataset_name}_train_data']
-    train_dataset_file = paths[f'{args.dataset_name}_train_config']
-    train_set_transforms = []
-    if args.resize:
-        train_set_transforms.append(augmentations.Resize(args.resize[0], args.resize[1]))
-    train_set_transforms.append(augmentations.Normalize())
-    train_set = CocoDataset(train_dataset_file, train_data_dir, transform=transforms.Compose(train_set_transforms))
-
-    # Create dev dataset:
-    if not args.no_dev:
-        dev_data_dir = paths[f'{args.dataset_name}_dev_data']
-        dev_dataset_file = paths[f'{args.dataset_name}_dev_config']
-        dev_set_transforms = []
-        if args.resize:
-            dev_set_transforms.append(augmentations.Resize(args.resize[0], args.resize[1]))
-        dev_set_transforms.append(augmentations.Normalize())
-        dev_set = CocoDataset(dev_dataset_file, dev_data_dir, transform=transforms.Compose(dev_set_transforms))
-    else:
-        warnings.warn("Training without dev set")
-        dev_set = None
-
     # Load checkpoints:
     if not args.checkpoints:
         args.checkpoints = f"{args.arch}_checkpoints.pkl"
@@ -123,8 +103,39 @@ if __name__ == '__main__':
             'epochs_loss_curve': [],
             'iteration_loss_curve': [],
             'model_params': None,
-            'optimizer_params': None
+            'optimizer_params': None,
+            'gradual_len': args.iter_size*args.batch_size
         }
+
+    if 'gradual_len' not in checkpoints:
+        checkpoints['gradual_len'] = args.iter_size*args.batch_size
+        warnings.warn(f"Updated checkpoints - add 'gradual_len' field with value {checkpoints['gradual_len']}")
+
+    # Create train dataset:
+    train_data_dir = paths[f'{args.dataset_name}_train_data']
+    train_dataset_file = paths[f'{args.dataset_name}_train_config']
+    train_set_transforms = []
+    if args.resize:
+        train_set_transforms.append(augmentations.Resize(args.resize[0], args.resize[1]))
+    train_set_transforms.append(augmentations.Normalize())
+    train_set = CocoDataset(train_dataset_file, train_data_dir, transform=transforms.Compose(train_set_transforms))
+    if args.gradual:
+        train_set = GradualDataset(train_set, checkpoints['gradual_len'])
+
+    # Create dev dataset:
+    if not args.no_dev:
+        dev_data_dir = paths[f'{args.dataset_name}_dev_data']
+        dev_dataset_file = paths[f'{args.dataset_name}_dev_config']
+        dev_set_transforms = []
+        if args.resize:
+            dev_set_transforms.append(augmentations.Resize(args.resize[0], args.resize[1]))
+        dev_set_transforms.append(augmentations.Normalize())
+        dev_set = CocoDataset(dev_dataset_file, dev_data_dir, transform=transforms.Compose(dev_set_transforms))
+        if args.gradual:
+            dev_set = GradualDataset(dev_set, checkpoints['gradual_len'])
+    else:
+        warnings.warn("Training without dev set")
+        dev_set = None
 
     # Create the model:
     if args.arch == 'resnet':
@@ -188,7 +199,7 @@ if __name__ == '__main__':
         epoch_losses.append(iteration_loss)
 
         logger.info(f"Train iteration - epoch:{train_instance.epoch} "
-                    f"iteration:{train_instance.iteration} avg-loss:{iteration_loss}")
+                    f"iteration:{train_instance.iteration} avg-loss:{iteration_loss} train-set-length:{len(train_set)}")
         logger.debug("Iteration times - " + " ".join([f"{key}:{avg_times[key]}" for key in avg_times]))
 
         if epoch_done:
@@ -197,6 +208,8 @@ if __name__ == '__main__':
             torch.save(checkpoints, args.checkpoints)
             logger.info(f"Train epoch {train_instance.epoch} - avg-loss:{epoch_avg_loss}")
             epoch_losses = []
+            if args.gradual and epoch_avg_loss <= args.gradual:
+                train_set.len = train_set.len*2
         else:
             if args.save_freq and (step % args.save_freq) == 0:
                 torch.save(checkpoints, args.checkpoints)

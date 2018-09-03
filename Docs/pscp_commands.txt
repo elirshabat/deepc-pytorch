@@ -1,3 +1,4 @@
 pscp -P 3019 eshabat@40.119.156.111:/home/eshabat/Dev/deepc-pytorch/Parameters/* C:\dev\deepc-pytorch\Parameters\
 pscp -P 3019 eshabat@40.119.156.111:/home/eshabat/Dev/deepc-pytorch/Stats/* C:\dev\deepc-pytorch\Stats\
 pscp -P 3019 -r eshabat@40.119.156.111:/home/eshabat/Dev/deepc-pytorch/Local C:\dev\deepc-pytorch\Temp\Remote_Local
+pscp -P 3019 eshabat@40.119.156.111:/home/eshabat/Dev/deepc-pytorch/Checkpoints/* C:\dev\deepc-pytorch\Checkpoints\
