@@ -46,8 +46,8 @@ def get_args():
     parser.add_argument("--no-dev", action="store_true", help="train without dev-set")
     parser.add_argument("--pre-trained", action='store_true',
                         help="indicate whether or not to use pre-trained model in case not checkpoints were given")
-    parser.add_argument("--save-freq", "-s", type=int, default=0,
-                        help="frequency in iterations for saving checkpoints (0 means every epoch)")
+    parser.add_argument("--save-freq", "-s", type=int, default=10,
+                        help="frequency in minutes for saving checkpoints")
     parser.add_argument("--profile", action='store_true', help="run single iteration with profiler")
     parser.add_argument("--gradual", "-g", type=float,
                         help="gradually increasing the dataset. "
@@ -182,6 +182,8 @@ if __name__ == '__main__':
 
     steps_counter = itertools.count(1)
 
+    last_save_time = time.time()
+
     while train_instance.epoch < start_train_epoch + args.epochs:
         step = next(steps_counter)
 
@@ -205,14 +207,14 @@ if __name__ == '__main__':
         if epoch_done:
             epoch_avg_loss = sum(epoch_losses)/len(epoch_losses)
             checkpoints['epochs_loss_curve'].append(epoch_avg_loss)
-            torch.save(checkpoints, args.checkpoints)
             logger.info(f"Train epoch {train_instance.epoch} - avg-loss:{epoch_avg_loss}")
             epoch_losses = []
             if args.gradual and epoch_avg_loss <= args.gradual:
                 train_set.len = train_set.len*2
-        else:
-            if args.save_freq and (step % args.save_freq) == 0:
-                torch.save(checkpoints, args.checkpoints)
+
+        if (time.time() - last_save_time)/60.0 < args.save_freq:
+            torch.save(checkpoints, args.checkpoints)
+            last_save_time = time.time()
 
     logger.info(f"Done training - n_epochs:{args.epochs} time:{time.time() - start_training_time}")
 
