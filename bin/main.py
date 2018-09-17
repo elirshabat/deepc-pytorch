@@ -21,6 +21,8 @@ from deepc.datasets.coco import CocoDataset
 from deepc.datasets import augmentations, GradualDataset
 from deepc.loss.discriminative import DiscriminativeLoss
 from deepc.run.train import Train
+from deepc.run.fit import fit
+from deepc.run.checkpoints import load_checkpoints, create_checkpoints
 
 
 GRADUAL_LEN_START = 100
@@ -70,42 +72,42 @@ def create_logger(name, level, arch):
     return local_logger
 
 
-def load_checkpoints(file_path, arch, gradual_len_start):
-    """
-    Load checkpoints from file or create new checkpoints object.
-    :param file_path: Path to checkpoints file (either existing or not)
-    :param arch: Architecture name to use in the file name in case it is not given.
-    :param gradual_len_start: First number of samples to use in case of training with gradual dataset.
-    :return: Checkpoints object.
-    """
-    if not file_path:
-        file_path = f"{arch}_checkpoints.pkl"
-        if os.path.isfile(file_path):
-            warnings.warn(f"Using existing checkpoints file with default filename: '{file_path}'")
-        else:
-            warnings.warn(f"Using new checkpoints file with default filename: '{file_path}'")
-
-    if os.path.isfile(file_path):
-        checkpoints = torch.load(file_path, map_location='cpu')
-        print(f"Loaded checkpoints from '{file_path}'")
-    else:
-        checkpoints = {
-            'train_epoch': 0,
-            'train_iteration': 0,
-            'dev_epoch': 0,
-            'dev_iteration': 0,
-            'epochs_loss_curve': [],
-            'iteration_loss_curve': [],
-            'model_params': None,
-            'optimizer_params': None,
-            'gradual_len': gradual_len_start
-        }
-
-    if 'gradual_len' not in checkpoints:
-        checkpoints['gradual_len'] = gradual_len_start
-        warnings.warn(f"Updated checkpoints - add 'gradual_len' field with value {checkpoints['gradual_len']}")
-
-    return checkpoints
+# def load_checkpoints(file_path, arch, gradual_len_start):
+#     """
+#     Load checkpoints from file or create new checkpoints object.
+#     :param file_path: Path to checkpoints file (either existing or not)
+#     :param arch: Architecture name to use in the file name in case it is not given.
+#     :param gradual_len_start: First number of samples to use in case of training with gradual dataset.
+#     :return: Checkpoints object.
+#     """
+#     if not file_path:
+#         file_path = f"{arch}_checkpoints.pkl"
+#         if os.path.isfile(file_path):
+#             warnings.warn(f"Using existing checkpoints file with default filename: '{file_path}'")
+#         else:
+#             warnings.warn(f"Using new checkpoints file with default filename: '{file_path}'")
+#
+#     if os.path.isfile(file_path):
+#         checkpoints = torch.load(file_path, map_location='cpu')
+#         print(f"Loaded checkpoints from '{file_path}'")
+#     else:
+#         checkpoints = {
+#             'train_epoch': 0,
+#             'train_iteration': 0,
+#             'dev_epoch': 0,
+#             'dev_iteration': 0,
+#             'epochs_loss_curve': [],
+#             'iteration_loss_curve': [],
+#             'model_params': None,
+#             'optimizer_params': None,
+#             'gradual_len': gradual_len_start
+#         }
+#
+#     if 'gradual_len' not in checkpoints:
+#         checkpoints['gradual_len'] = gradual_len_start
+#         warnings.warn(f"Updated checkpoints - add 'gradual_len' field with value {checkpoints['gradual_len']}")
+#
+#     return checkpoints
 
 
 def create_dataset(data_dir, config_file, resize=None, gradual_len=None):
@@ -139,6 +141,7 @@ def main(args):
     # Initial configurations:
     mp.set_start_method('spawn')
     cuda_available = (torch.cuda.device_count() > 0)
+    device = torch.device('cuda') if cuda_available else torch.device('cpu')
     if cuda_available:
         cudnn.benchmark = True
     else:
@@ -147,7 +150,37 @@ def main(args):
     with open(args.paths_file, 'r') as f:
         paths = yaml.load(f)
 
-    checkpoints = load_checkpoints(args.checkpoints, args.arch, GRADUAL_LEN_START)
+    if not args.checkpoints:
+        args.checkpoints = f"{arch}_checkpoints.pkl"
+        if os.path.isfile(args.checkpoints):
+            warnings.warn(f"Using existing checkpoints file with default filename: '{args.checkpoints}'")
+        else:
+            warnings.warn(f"Using new checkpoints file with default filename: '{args.checkpoints}'")
+
+    if os.path.isfile(args.checkpoints):
+        checkpoints = load_checkpoints(args.checkpoints)
+        # checkpoints = torch.load(checkpoints_file_path, map_location='cpu')
+        print(f"Loaded checkpoints from '{args.checkpoints}'")
+    else:
+        checkpoints = create_checkpoints()
+        # checkpoints = {
+        #     'train_epoch': 0,
+        #     'train_iteration': 0,
+        #     'dev_epoch': 0,
+        #     'dev_iteration': 0,
+        #     'epochs_loss_curve': [],
+        #     'iteration_loss_curve': [],
+        #     'model_params': None,
+        #     'optimizer_params': None,
+        #     'gradual_len': gradual_len_start
+        # }
+
+    # if 'gradual_len' not in checkpoints:
+    #     checkpoints['gradual_len'] = gradual_len_start
+    #     warnings.warn(f"Updated checkpoints - add 'gradual_len' field with value {checkpoints['gradual_len']}")
+
+    # return checkpoints
+    # checkpoints = load_checkpoints(args.checkpoints, args.arch, GRADUAL_LEN_START)
 
     train_set = create_dataset(paths[f'{args.dataset_name}_train_data'], paths[f'{args.dataset_name}_train_config'],
                                resize=args.resize, gradual_len=checkpoints['gradual_len'])
@@ -181,46 +214,52 @@ def main(args):
     #     dev_loader = None
 
     # Run training:
-    start_train_epoch, start_train_iteration = checkpoints['train_epoch'], checkpoints['train_iteration']
+    # start_train_epoch, start_train_iteration = checkpoints['train_epoch'], checkpoints['train_iteration']
 
-    train_instance = Train(train_loader, model, loss_func, optimizer, cpu=(not cuda_available),
-                           start_epoch=start_train_epoch, start_iteration=start_train_iteration,
-                           iteration_size=args.iter_size)
+    # train_instance = Train(train_loader, model, loss_func, optimizer, cpu=(not cuda_available),
+    #                        start_epoch=start_train_epoch, start_iteration=start_train_iteration,
+    #                        iteration_size=args.iter_size)
+    #
+    # start_training_time = time.time()
+    # epoch_losses = []
+    #
+    # last_save_time = time.time()
 
-    start_training_time = time.time()
-    epoch_losses = []
+    fit(model, loss_func, optimizer, train_loader, args.epochs, device, logger,
+        start_epoch=len(checkpoints['train_learning_curve']), checkpoints=checkpoints,
+        checkpoints_file_path=args.checkpoints, save_freq=args.save_freq)
 
-    last_save_time = time.time()
+    # TODO: enable gradual dataset
 
-    while train_instance.epoch < start_train_epoch + args.epochs:
+    # while train_instance.epoch < start_train_epoch + args.epochs:
 
-        iteration_loss, epoch_done, avg_times = train_instance.run()
+        # iteration_loss, epoch_done, avg_times = train_instance.run()
 
-        checkpoints['train_iteration'] += 1
-        checkpoints['train_epoch'] = train_instance.epoch
-        checkpoints['iteration_loss_curve'].append(iteration_loss)
-        checkpoints['model_params'] = model.state_dict()
-        checkpoints['optimizer_params'] = optimizer.state_dict()
+        # checkpoints['train_iteration'] += 1
+        # checkpoints['train_epoch'] = train_instance.epoch
+        # checkpoints['iteration_loss_curve'].append(iteration_loss)
+        # checkpoints['model_params'] = model.state_dict()
+        # checkpoints['optimizer_params'] = optimizer.state_dict()
 
-        epoch_losses.append(iteration_loss)
+        # epoch_losses.append(iteration_loss)
 
-        logger.info(f"Train iteration - epoch:{train_instance.epoch} "
-                    f"iteration:{train_instance.iteration} avg-loss:{iteration_loss} train-set-length:{len(train_set)}")
-        logger.debug("Iteration times - " + " ".join([f"{key}:{avg_times[key]}" for key in avg_times]))
+        # logger.info(f"Train iteration - epoch:{train_instance.epoch} "
+        #             f"iteration:{train_instance.iteration} avg-loss:{iteration_loss} train-set-length:{len(train_set)}")
+        # logger.debug("Iteration times - " + " ".join([f"{key}:{avg_times[key]}" for key in avg_times]))
 
-        if epoch_done:
-            epoch_avg_loss = sum(epoch_losses) / len(epoch_losses)
-            checkpoints['epochs_loss_curve'].append(epoch_avg_loss)
-            logger.info(f"Train epoch {train_instance.epoch} - avg-loss:{epoch_avg_loss}")
-            epoch_losses = []
-            if args.gradual and epoch_avg_loss <= args.gradual:
-                train_set.len = train_set.len * 2
+        # if epoch_done:
+        #     epoch_avg_loss = sum(epoch_losses) / len(epoch_losses)
+        #     checkpoints['epochs_loss_curve'].append(epoch_avg_loss)
+        #     logger.info(f"Train epoch {train_instance.epoch} - avg-loss:{epoch_avg_loss}")
+        #     epoch_losses = []
+        #     if args.gradual and epoch_avg_loss <= args.gradual:
+        #         train_set.len = train_set.len * 2
 
-        if (time.time() - last_save_time) / 60.0 < args.save_freq:
-            torch.save(checkpoints, args.checkpoints)
-            last_save_time = time.time()
+        # if (time.time() - last_save_time) / 60.0 < args.save_freq:
+        #     torch.save(checkpoints, args.checkpoints)
+        #     last_save_time = time.time()
 
-    logger.info(f"Done training - n_epochs:{args.epochs} time:{time.time() - start_training_time}")
+    # logger.info(f"Done training - n_epochs:{args.epochs} time:{time.time() - start_training_time}")
 
     # TODO: validation
 
