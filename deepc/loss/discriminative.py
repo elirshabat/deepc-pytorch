@@ -5,7 +5,7 @@ import numpy as np
 class DiscriminativeLoss(torch.nn.Module):
 
     def __init__(self, var_weight=1.0, dist_weight=1.0, reg_weight=1.0,
-                 delta_var=None, delta_dist=None, cuda=True):
+                 delta_var=None, delta_dist=None, delta_reg=None):
         """
         Initialize the loss function.
         :param delta_var: hinge value form the variance term
@@ -24,15 +24,11 @@ class DiscriminativeLoss(torch.nn.Module):
         delta_dist = delta_dist if delta_dist else auto_delta_dist
         self._delta_dist = torch.tensor(delta_dist, dtype=torch.float)
 
+        self._delta_reg = delta_reg
+
         self._var_weight = torch.tensor(var_weight, dtype=torch.float)
         self._dist_weight = torch.tensor(dist_weight, dtype=torch.float)
         self._reg_weight = torch.tensor(reg_weight, dtype=torch.float)
-
-        if cuda:
-            self._delta_var, self._delta_dist = self._delta_var.cuda(), self._delta_dist.cuda()
-            self._var_weight = self._var_weight.cuda()
-            self._dist_weight = self._dist_weight.cuda()
-            self._reg_weight = self._reg_weight.cuda()
 
     def forward(self, data, labels):
         """
@@ -44,38 +40,41 @@ class DiscriminativeLoss(torch.nn.Module):
         batch_size, d, h, w = data.shape
         var_terms, dist_terms, reg_terms = [], [], []
 
+        delta_reg = self._delta_reg if self._delta_reg is not None else np.sqrt(d)
+
         for batch_index in range(batch_size):
             X, L = data[batch_index, :, :, :].view(d, -1), labels[batch_index, :, :].view(-1)
             cluster_ids = L.unique()
-            k = len(cluster_ids)
+            n_clusters = len(cluster_ids)
             centers = []
 
-            if k <= 1:
+            if n_clusters <= 1:
                 var_terms.append(torch.tensor(0, device=data.device, dtype=torch.float))
                 dist_terms.append(torch.tensor(0, device=data.device, dtype=torch.float))
                 reg_terms.append(torch.tensor(0, device=data.device, dtype=torch.float))
             else:
-                for c_index in range(k):
-                    c_id = cluster_ids[c_index]
-                    labels_mask = (L == c_id)
-                    c_size = labels_mask.sum().float()
-                    points_mask = labels_mask.unsqueeze(0).repeat([d, 1]).float()
-                    c_points = X*points_mask
-                    c_center = c_points.sum(1)/c_size
+                batch_var_terms = []
+                for c_index in range(n_clusters):
+                    labels_mask = (L == cluster_ids[c_index])
+                    pts = X[:, labels_mask]
+                    c_center = pts.mean(1)
+                    c_var = (((pts - c_center.unsqueeze(1)).norm(dim=0) - self._delta_var).clamp(0) ** 2).mean()
                     centers.append(c_center)
-                    c_var = (((c_points - c_center.unsqueeze(1)*points_mask).norm(dim=0) - self._delta_var).clamp(0)**2).sum()/c_size
-                    var_terms.append(c_var)
+                    batch_var_terms.append(c_var)
+                var_term = torch.stack(batch_var_terms).mean()
 
                 centers_tensor = torch.stack(centers)
-                for c_index in range(k):
-                    dist_term = ((self._delta_dist - (centers[c_index] - centers_tensor).norm(dim=1)).clamp(0)**2/(k*(k - 1))).sum()/2
-                    dist_terms.append(dist_term)
+                dist_matrix = (centers_tensor.unsqueeze(0) - centers_tensor.unsqueeze(1)).norm(dim=2)
+                dist_term = dist_matrix.mean()*(n_clusters/(n_clusters - 1))
 
-                reg_term = centers_tensor.norm(dim=1).mean()
+                reg_term = ((centers_tensor.norm(dim=1) - delta_reg).clamp(0)**2).mean()
+
+                var_terms.append(var_term)
+                dist_terms.append(dist_term)
                 reg_terms.append(reg_term)
 
-        loss = (self._var_weight*torch.stack(var_terms).sum()
-                + self._dist_weight*torch.stack(dist_terms).sum()
-                + self._reg_weight*torch.stack(reg_terms).sum())/batch_size
+        loss = (self._var_weight*torch.stack(var_terms).mean()
+                + self._dist_weight*torch.stack(dist_terms).mean()
+                + self._reg_weight*torch.stack(reg_terms).mean())
 
         return loss

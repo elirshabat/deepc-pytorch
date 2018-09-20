@@ -148,7 +148,7 @@ def main(args):
                          pre_trained=args.pre_trained)
 
     # Loss function:
-    loss_func = DiscriminativeLoss(cuda=cuda_available).to(device)
+    loss_func = DiscriminativeLoss().to(device)
 
     # Optimizer:
     if args.lr is not None:
