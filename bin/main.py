@@ -39,25 +39,19 @@ def get_args():
     parser.add_argument("--out-dims", "-d", type=int, default=5, help="dimension of network outputs")
     parser.add_argument("--resize", "-r", type=int, nargs=2, default=[240, 320],
                         help="tuple of (height, width) to resize the input images")
-    parser.add_argument("--epochs", "--epoch-limit", "-e", type=int, default=1e9,
-                        help="maximum number of epochs to run")
+    parser.add_argument("--epochs", "--epoch-limit", "-e", type=int, default=10000, help="number of epochs to run")
     parser.add_argument("--batch-size", "-b", type=int, help="batch size to use")
     parser.add_argument("--num-workers", "-n", type=int, default=2, help="number of workers to use for reading data")
-    parser.add_argument("--iter-size", "-T", type=int, default=100,
-                        help="iteration size for saving checkpoints")
     parser.add_argument("--checkpoints", "-c", help="path to checkpoints file")
     parser.add_argument("--log-level", "--ll", default="INFO", choices=['DEBUG', 'INFO'], help="logging level")
     parser.add_argument("--lr", "--learning-rate", type=float, help="learning-rate")
-    parser.add_argument("--no-dev", action="store_true", help="train without dev-set")
     parser.add_argument("--pre-trained", action='store_true',
                         help="indicate whether or not to use pre-trained model in case not checkpoints were given")
-    parser.add_argument("--save-freq", "-s", type=int, default=10,
-                        help="frequency in minutes for saving checkpoints")
+    parser.add_argument("--save-freq", "-s", type=int, default=10, help="frequency in minutes for saving checkpoints")
     parser.add_argument("--profile", action='store_true', help="run single iteration with profiler")
     parser.add_argument("--gradual", "-g", type=float,
                         help="gradually increasing the dataset. "
-                             "The argument is the loss threshold after which the size of the dataset is doubled.")
-
+                             "The argument is the loss threshold below which the size of the dataset is doubled.")
     return parser.parse_args()
 
 
