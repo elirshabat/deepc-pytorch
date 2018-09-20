@@ -84,7 +84,7 @@ def create_dataset(data_dir, config_file, resize=None, gradual_len=None):
     return train_set
 
 
-def create_model(arch, out_dims, device, parameters=None, pre_trained=False, cuda_available=False):
+def create_model(arch, out_dims, device, parameters=None, pre_trained=False):
     if arch == 'resnet':
         if parameters is not None:
             model = ResnetMIS(pretrained_resnet=False, out_channels=out_dims)
@@ -143,7 +143,7 @@ def main(args):
 
     # Model:
     model = create_model(args.arch, args.out_dims, device, parameters=checkpoints['model_params'],
-                         pre_trained=args.pre_trained, cuda_available=cuda_available)
+                         pre_trained=args.pre_trained)
 
     # Loss function:
     loss_func = DiscriminativeLoss(cuda=cuda_available).to(device)
