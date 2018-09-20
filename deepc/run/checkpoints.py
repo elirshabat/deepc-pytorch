@@ -1,4 +1,5 @@
 import torch
+from deepc.analysis.show import show_learning_curve
 
 
 def create_checkpoints(model=None, optimizer=None, train_learning_curve=[], dev_learning_curve=[], gradual_len=None):
@@ -29,3 +30,8 @@ def update_checkpoints(checkpoints, model=None, optimizer=None, train_learning_c
 
 def save_checkpoints(checkpoints, file_path):
     torch.save(checkpoints, file_path)
+
+
+def show_checkpoints(checkpoints):
+    show_learning_curve(checkpoints['train_learning_curve'], 'train')
+    show_learning_curve(checkpoints['dev_learning_curve'], 'dev')

@@ -11,6 +11,8 @@ from torchvision import transforms
 import torch.backends.cudnn as cudnn
 from torch.utils.data import DataLoader
 import cProfile
+import numpy as np
+import matplotlib.pyplot as plt
 
 curr_dir = os.path.abspath(os.path.dirname(__file__))
 repo_dir = os.path.join(curr_dir, "..")
@@ -20,9 +22,8 @@ from deepc.modules.resnet import ResnetMIS
 from deepc.datasets.coco import CocoDataset
 from deepc.datasets import augmentations, GradualDataset
 from deepc.loss.discriminative import DiscriminativeLoss
-from deepc.run.train import Train
 from deepc.run.fit import fit
-from deepc.run.checkpoints import load_checkpoints, create_checkpoints
+from deepc.run.checkpoints import load_checkpoints, create_checkpoints, show_checkpoints
 
 
 GRADUAL_LEN_START = 100
@@ -72,44 +73,6 @@ def create_logger(name, level, arch):
     return local_logger
 
 
-# def load_checkpoints(file_path, arch, gradual_len_start):
-#     """
-#     Load checkpoints from file or create new checkpoints object.
-#     :param file_path: Path to checkpoints file (either existing or not)
-#     :param arch: Architecture name to use in the file name in case it is not given.
-#     :param gradual_len_start: First number of samples to use in case of training with gradual dataset.
-#     :return: Checkpoints object.
-#     """
-#     if not file_path:
-#         file_path = f"{arch}_checkpoints.pkl"
-#         if os.path.isfile(file_path):
-#             warnings.warn(f"Using existing checkpoints file with default filename: '{file_path}'")
-#         else:
-#             warnings.warn(f"Using new checkpoints file with default filename: '{file_path}'")
-#
-#     if os.path.isfile(file_path):
-#         checkpoints = torch.load(file_path, map_location='cpu')
-#         print(f"Loaded checkpoints from '{file_path}'")
-#     else:
-#         checkpoints = {
-#             'train_epoch': 0,
-#             'train_iteration': 0,
-#             'dev_epoch': 0,
-#             'dev_iteration': 0,
-#             'epochs_loss_curve': [],
-#             'iteration_loss_curve': [],
-#             'model_params': None,
-#             'optimizer_params': None,
-#             'gradual_len': gradual_len_start
-#         }
-#
-#     if 'gradual_len' not in checkpoints:
-#         checkpoints['gradual_len'] = gradual_len_start
-#         warnings.warn(f"Updated checkpoints - add 'gradual_len' field with value {checkpoints['gradual_len']}")
-#
-#     return checkpoints
-
-
 def create_dataset(data_dir, config_file, resize=None, gradual_len=None):
     dataset_transforms = []
     if resize:
@@ -121,8 +84,7 @@ def create_dataset(data_dir, config_file, resize=None, gradual_len=None):
     return train_set
 
 
-def create_model(arch, out_dims, parameters=None, pre_trained=False, cuda_available=False):
-    model = None
+def create_model(arch, out_dims, device, parameters=None, pre_trained=False, cuda_available=False):
     if arch == 'resnet':
         if parameters is not None:
             model = ResnetMIS(pretrained_resnet=False, out_channels=out_dims)
@@ -131,9 +93,13 @@ def create_model(arch, out_dims, parameters=None, pre_trained=False, cuda_availa
             model = ResnetMIS(pretrained_resnet=True, out_channels=out_dims)
         else:
             model = ResnetMIS(pretrained_resnet=False, out_channels=out_dims)
-    if cuda_available:
-        model = model.cuda()
-    return model
+    else:
+        raise ValueError(f"{arch} is not a valid model")
+    return model.to(device)
+
+
+def generate_checkpoints_file_name(arch):
+    return f"{arch}_checkpoints.pkl"
 
 
 def main(args):
@@ -150,127 +116,60 @@ def main(args):
     with open(args.paths_file, 'r') as f:
         paths = yaml.load(f)
 
+    # Checkpoints:
     if not args.checkpoints:
-        args.checkpoints = f"{arch}_checkpoints.pkl"
+        args.checkpoints = generate_checkpoints_file_name(args.arch)
         if os.path.isfile(args.checkpoints):
             warnings.warn(f"Using existing checkpoints file with default filename: '{args.checkpoints}'")
         else:
             warnings.warn(f"Using new checkpoints file with default filename: '{args.checkpoints}'")
-
     if os.path.isfile(args.checkpoints):
         checkpoints = load_checkpoints(args.checkpoints)
-        # checkpoints = torch.load(checkpoints_file_path, map_location='cpu')
         print(f"Loaded checkpoints from '{args.checkpoints}'")
     else:
         checkpoints = create_checkpoints()
-        # checkpoints = {
-        #     'train_epoch': 0,
-        #     'train_iteration': 0,
-        #     'dev_epoch': 0,
-        #     'dev_iteration': 0,
-        #     'epochs_loss_curve': [],
-        #     'iteration_loss_curve': [],
-        #     'model_params': None,
-        #     'optimizer_params': None,
-        #     'gradual_len': gradual_len_start
-        # }
 
-    # if 'gradual_len' not in checkpoints:
-    #     checkpoints['gradual_len'] = gradual_len_start
-    #     warnings.warn(f"Updated checkpoints - add 'gradual_len' field with value {checkpoints['gradual_len']}")
-
-    # return checkpoints
-    # checkpoints = load_checkpoints(args.checkpoints, args.arch, GRADUAL_LEN_START)
-
+    # Training set:
     train_set = create_dataset(paths[f'{args.dataset_name}_train_data'], paths[f'{args.dataset_name}_train_config'],
                                resize=args.resize, gradual_len=checkpoints['gradual_len'])
 
-    # TODO: dev set
-    # if not args.no_dev:
-    #     dev_set = create_dataset(f'{args.dataset_name}_dev_data', f'{args.dataset_name}_dev_config', resize=args.resize)
-    # else:
-    #     warnings.warn("Training without dev set")
-    #     dev_set = None
+    # Train data loader:
+    train_loader = DataLoader(train_set, shuffle=True, num_workers=args.num_workers,
+                              batch_size=args.batch_size, pin_memory=cuda_available)
 
-    model = create_model(args.arch, args.out_dims, parameters=checkpoints['model_params'], pre_trained=args.pre_trained,
-                         cuda_available=cuda_available)
+    # TODO: dev set and dev data loader
 
-    loss_func = DiscriminativeLoss(cuda=cuda_available)
-    if cuda_available:
-        loss_func = loss_func.cuda()
+    # TODO: enable gradual dataset
 
+    # Model:
+    model = create_model(args.arch, args.out_dims, device, parameters=checkpoints['model_params'],
+                         pre_trained=args.pre_trained, cuda_available=cuda_available)
+
+    # Loss function:
+    loss_func = DiscriminativeLoss(cuda=cuda_available).to(device)
+
+    # Optimizer:
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     if checkpoints['optimizer_params'] is not None:
         optimizer.load_state_dict(checkpoints['optimizer_params'])
 
-    train_loader = DataLoader(train_set, shuffle=True, num_workers=args.num_workers,
-                              batch_size=args.batch_size, pin_memory=cuda_available)
+    start_training_time = time.time()
 
-    # TODO: dev set
-    # if dev_set is not None:
-    #     dev_loader = DataLoader(dev_set, shuffle=True, num_workers=args.num_workers,
-    #                             batch_size=args.batch_size, pin_memory=cuda_available)
-    # else:
-    #     dev_loader = None
+    loss_curve = fit(model, loss_func, optimizer, train_loader, args.epochs, device, logger,
+                     start_epoch=len(checkpoints['train_learning_curve']), checkpoints=checkpoints,
+                     checkpoints_file_path=args.checkpoints, save_freq=args.save_freq)
 
-    # Run training:
-    # start_train_epoch, start_train_iteration = checkpoints['train_epoch'], checkpoints['train_iteration']
-
-    # train_instance = Train(train_loader, model, loss_func, optimizer, cpu=(not cuda_available),
-    #                        start_epoch=start_train_epoch, start_iteration=start_train_iteration,
-    #                        iteration_size=args.iter_size)
-    #
-    # start_training_time = time.time()
-    # epoch_losses = []
-    #
-    # last_save_time = time.time()
-
-    fit(model, loss_func, optimizer, train_loader, args.epochs, device, logger,
-        start_epoch=len(checkpoints['train_learning_curve']), checkpoints=checkpoints,
-        checkpoints_file_path=args.checkpoints, save_freq=args.save_freq)
-
-    # TODO: enable gradual dataset
-
-    # while train_instance.epoch < start_train_epoch + args.epochs:
-
-        # iteration_loss, epoch_done, avg_times = train_instance.run()
-
-        # checkpoints['train_iteration'] += 1
-        # checkpoints['train_epoch'] = train_instance.epoch
-        # checkpoints['iteration_loss_curve'].append(iteration_loss)
-        # checkpoints['model_params'] = model.state_dict()
-        # checkpoints['optimizer_params'] = optimizer.state_dict()
-
-        # epoch_losses.append(iteration_loss)
-
-        # logger.info(f"Train iteration - epoch:{train_instance.epoch} "
-        #             f"iteration:{train_instance.iteration} avg-loss:{iteration_loss} train-set-length:{len(train_set)}")
-        # logger.debug("Iteration times - " + " ".join([f"{key}:{avg_times[key]}" for key in avg_times]))
-
-        # if epoch_done:
-        #     epoch_avg_loss = sum(epoch_losses) / len(epoch_losses)
-        #     checkpoints['epochs_loss_curve'].append(epoch_avg_loss)
-        #     logger.info(f"Train epoch {train_instance.epoch} - avg-loss:{epoch_avg_loss}")
-        #     epoch_losses = []
-        #     if args.gradual and epoch_avg_loss <= args.gradual:
-        #         train_set.len = train_set.len * 2
-
-        # if (time.time() - last_save_time) / 60.0 < args.save_freq:
-        #     torch.save(checkpoints, args.checkpoints)
-        #     last_save_time = time.time()
-
-    # logger.info(f"Done training - n_epochs:{args.epochs} time:{time.time() - start_training_time}")
+    logger.info(f"Done training - n_epochs:{args.epochs} time:{time.time() - start_training_time} "
+                f"avg-loss:{np.mean(loss_curve)}")
 
     # TODO: validation
 
-    # TODO: show curves in case of interactive mode
+    show_checkpoints(checkpoints)
+    plt.show()
 
 
 if __name__ == '__main__':
-
     arguments = get_args()
-    print(arguments)
-
     if arguments.profile:
         cProfile.run('main(arguments)', 'main_profile')
     else:

@@ -22,7 +22,7 @@ def show_embeddings_3d(image_tensor, labels_tensor, y_tensor):
         ax.scatter(cluster_points[:, 0], cluster_points[:, 1], cluster_points[:, 2], alpha=alpha)
 
 
-def embeddings_parallel_coordinates(y_tensor, labels_tensor):
+def show_embeddings_parallel_coordinates(y_tensor, labels_tensor):
     l, y = labels_tensor.numpy(), y_tensor.detach().numpy().transpose((1, 2, 0))
     l, y = l.reshape(-1), y.reshape((-1, y.shape[2]))
 
@@ -64,3 +64,11 @@ def show_outcomes(image_tensor, true_labels_tensor, computed_labels_array):
     ax3.imshow(np_image)
     ax2.imshow(true_labels_tensor.cpu().numpy(), alpha=0.5)
     ax3.imshow(np.reshape(computed_labels_array.astype(np.uint8), true_labels_tensor.cpu().numpy().shape), alpha=0.5)
+
+
+def show_learning_curve(curve, mode):
+    fig, ax = plt.subplots()
+    ax.plot(curve)
+    fig.suptitle(f"{mode} learning curve")
+    ax.set_xlabel("epoch")
+    ax.set_ylabel("loss")
