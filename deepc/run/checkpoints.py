@@ -2,13 +2,16 @@ import torch
 from deepc.analysis.show import show_learning_curve
 
 
-def create_checkpoints(model=None, optimizer=None, train_learning_curve=[], dev_learning_curve=[], gradual_len=None):
+def create_checkpoints(model=None, optimizer=None, train_learning_curve=[], dev_learning_curve=[], gradual_len=None,
+                       learning_rate=None, batch_size=None):
     return {
         'model_params': model.state_dict() if model is not None else None,
         'optimizer_params': optimizer.state_dict() if optimizer is not None else None,
         'train_learning_curve': train_learning_curve,
         'dev_learning_curve': dev_learning_curve,
-        'gradual_len': gradual_len
+        'gradual_len': gradual_len,
+        'learning_rate': learning_rate,
+        'batch_size': batch_size
     }
 
 

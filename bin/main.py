@@ -41,13 +41,13 @@ def get_args():
                         help="tuple of (height, width) to resize the input images")
     parser.add_argument("--epochs", "--epoch-limit", "-e", type=int, default=1e9,
                         help="maximum number of epochs to run")
-    parser.add_argument("--batch-size", "-b", type=int, default=16, help="batch size to use")
+    parser.add_argument("--batch-size", "-b", type=int, help="batch size to use")
     parser.add_argument("--num-workers", "-n", type=int, default=2, help="number of workers to use for reading data")
     parser.add_argument("--iter-size", "-T", type=int, default=100,
                         help="iteration size for saving checkpoints")
     parser.add_argument("--checkpoints", "-c", help="path to checkpoints file")
     parser.add_argument("--log-level", "--ll", default="INFO", choices=['DEBUG', 'INFO'], help="logging level")
-    parser.add_argument("--lr", "--learning-rate", type=float, default=1e-4, help="learning-rate")
+    parser.add_argument("--lr", "--learning-rate", type=float, help="learning-rate")
     parser.add_argument("--no-dev", action="store_true", help="train without dev-set")
     parser.add_argument("--pre-trained", action='store_true',
                         help="indicate whether or not to use pre-trained model in case not checkpoints were given")
@@ -134,8 +134,16 @@ def main(args):
                                resize=args.resize, gradual_len=checkpoints['gradual_len'])
 
     # Train data loader:
+    if args.batch_size is not None:
+        batch_size = args.batch_size
+    elif checkpoints['batch_size'] is not None:
+        batch_size = checkpoints['batch_size']
+    else:
+        batch_size = 1
+        warnings.warn(f"Batch size is set to the default value of {batch_size} since it is the first training and it "
+                      f"is not passed as argument")
     train_loader = DataLoader(train_set, shuffle=True, num_workers=args.num_workers,
-                              batch_size=args.batch_size, pin_memory=cuda_available)
+                              batch_size=batch_size, pin_memory=cuda_available)
 
     # TODO: dev set and dev data loader
 
@@ -149,7 +157,15 @@ def main(args):
     loss_func = DiscriminativeLoss(cuda=cuda_available).to(device)
 
     # Optimizer:
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    if args.lr is not None:
+        lr = args.lr
+    elif checkpoints['learning_rate'] is not None:
+        lr = checkpoints['learning_rate']
+    else:
+        lr = 1e-3
+        warnings.warn(f"Learning rate is set to the default value of {lr} since it is the first training and it is "
+                      f"not passed as argument")
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     if checkpoints['optimizer_params'] is not None:
         optimizer.load_state_dict(checkpoints['optimizer_params'])
 
