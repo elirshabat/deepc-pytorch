@@ -17,18 +17,19 @@ class DiscriminativeLoss(torch.nn.Module):
         super().__init__()
 
         auto_delta_var = 1
-        delta_var = delta_var if delta_var else auto_delta_var
-        self._delta_var = torch.tensor(delta_var, dtype=torch.float)
+        self._delta_var = delta_var if delta_var else auto_delta_var
 
         auto_delta_dist = 2
-        delta_dist = delta_dist if delta_dist else auto_delta_dist
-        self._delta_dist = torch.tensor(delta_dist, dtype=torch.float)
+        self._delta_dist = delta_dist if delta_dist else auto_delta_dist
 
         self._delta_reg = delta_reg
 
-        self._var_weight = torch.tensor(var_weight, dtype=torch.float)
-        self._dist_weight = torch.tensor(dist_weight, dtype=torch.float)
-        self._reg_weight = torch.tensor(reg_weight, dtype=torch.float)
+        # self._var_weight = torch.tensor(var_weight, dtype=torch.float)
+        # self._dist_weight = torch.tensor(dist_weight, dtype=torch.float)
+        # self._reg_weight = torch.tensor(reg_weight, dtype=torch.float)
+        self._var_weight = var_weight
+        self._dist_weight = dist_weight
+        self._reg_weight = reg_weight
 
     def forward(self, data, labels):
         """
