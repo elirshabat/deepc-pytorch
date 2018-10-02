@@ -30,6 +30,10 @@ GRADUAL_LEN_START = 100
 
 
 def get_args():
+    """
+    Get the user arguments.
+    :return: Arguments structure
+    """
     parser = argparse.ArgumentParser(description="Run deepc training")
 
     parser.add_argument("paths_file", help="path to paths configuration file")
@@ -56,6 +60,13 @@ def get_args():
 
 
 def create_logger(name, level, arch):
+    """
+    Create logger object.
+    :param name: Name of the logger
+    :param level: Level to log
+    :param arch: Architecture
+    :return: Logger
+    """
     local_logger = logging.getLogger(name)
     local_logger.setLevel(level)
     handler = logging.FileHandler(f"{name}_{arch}.log")
@@ -68,6 +79,14 @@ def create_logger(name, level, arch):
 
 
 def create_dataset(data_dir, config_file, resize=None, gradual_len=None):
+    """
+    Create data-set.
+    :param data_dir: Directory with data
+    :param config_file:  Dataset's configuration file
+    :param resize: Resize vector for 2D images
+    :param gradual_len: Length for gradual dataset
+    :return: Dataset
+    """
     dataset_transforms = []
     if resize:
         dataset_transforms.append(augmentations.Resize(resize[0], resize[1]))
@@ -79,6 +98,15 @@ def create_dataset(data_dir, config_file, resize=None, gradual_len=None):
 
 
 def create_model(arch, out_dims, device, parameters=None, pre_trained=False):
+    """
+    Create the model.
+    :param arch: Architecture
+    :param out_dims: Dimension of output points
+    :param device: pytorch device to train on
+    :param parameters: Model's parameters
+    :param pre_trained: Whether or not to use a pre-trained model
+    :return: Model
+    """
     if arch == 'resnet':
         if parameters is not None:
             model = ResnetMIS(pretrained_resnet=False, out_channels=out_dims)
@@ -93,11 +121,19 @@ def create_model(arch, out_dims, device, parameters=None, pre_trained=False):
 
 
 def generate_checkpoints_file_name(arch):
+    """
+    Generate the name of the checkpoints file.
+    :param arch: Architecture
+    :return: File name
+    """
     return f"{arch}_checkpoints.pkl"
 
 
 def main(args):
-
+    """
+    Main function of the script.
+    :param args: User's arguments
+    """
     # Initial configurations:
     mp.set_start_method('spawn')
     cuda_available = (torch.cuda.device_count() > 0)
