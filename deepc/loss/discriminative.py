@@ -65,7 +65,8 @@ class DiscriminativeLoss(torch.nn.Module):
 
                 centers_tensor = torch.stack(centers)
                 dist_matrix = (centers_tensor.unsqueeze(0) - centers_tensor.unsqueeze(1)).norm(dim=2)
-                dist_term = dist_matrix.mean()*(n_clusters/(n_clusters - 1))
+                dist_cost_matrix = ((self._delta_dist - (dist_matrix + torch.eye(n_clusters)*self._delta_dist)).clamp(0)**2)
+                dist_term = dist_cost_matrix.sum()/(n_clusters*(n_clusters - 1))
 
                 reg_term = ((centers_tensor.norm(dim=1) - delta_reg).clamp(0)**2).mean()
 
