@@ -20,7 +20,7 @@ def fit(model, criterion, optimizer, data_loader, n_epochs, device=torch.device(
             loss.backward()
             optimizer.step()
             epoch_losses.append(loss.item())
-            if (time.time() - last_save_time) / 60.0 < save_freq:
+            if (time.time() - last_save_time) / 60.0 >= save_freq:
                 checkpoints = update_checkpoints(checkpoints, model=model, optimizer=optimizer,
                                                  train_learning_curve=learning_curve)
                 save_checkpoints(checkpoints, checkpoints_file_path)
