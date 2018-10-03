@@ -44,7 +44,7 @@ class DiscriminativeLoss(torch.nn.Module):
         delta_reg = self._delta_reg if self._delta_reg is not None else np.sqrt(d)
 
         for batch_index in range(batch_size):
-            X, L = data[batch_index, :, :, :].view(d, -1), labels[batch_index, :, :].view(-1)
+            X, L = data[batch_index, :, :, :].view(d, -1).permute(1, 0), labels[batch_index, :, :].view(-1)
             cluster_ids = L.unique()
             n_clusters = len(cluster_ids)
             centers = []
@@ -57,9 +57,9 @@ class DiscriminativeLoss(torch.nn.Module):
                 batch_var_terms = []
                 for c_index in range(n_clusters):
                     labels_mask = (L == cluster_ids[c_index])
-                    pts = X[:, labels_mask]
-                    c_center = pts.mean(1)
-                    c_var = (((pts - c_center.unsqueeze(1)).norm(dim=0) - self._delta_var).clamp(0) ** 2).mean()
+                    pts = X[labels_mask]
+                    c_center = pts.mean(0)
+                    c_var = (((pts - c_center).norm(dim=1) - self._delta_var).clamp(0) ** 2).mean()
                     centers.append(c_center)
                     batch_var_terms.append(c_var)
                 var_term = torch.stack(batch_var_terms).mean()
