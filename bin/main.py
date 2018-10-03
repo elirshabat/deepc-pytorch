@@ -52,6 +52,7 @@ def get_args():
     parser.add_argument("--pre-trained", action='store_true',
                         help="indicate whether or not to use pre-trained model in case not checkpoints were given")
     parser.add_argument("--save-freq", "-s", type=int, default=10, help="frequency in minutes for saving checkpoints")
+    parser.add_argument("--log-freq", "-l", action='store_true', help="frequency in minutes for logging info")
     parser.add_argument("--profile", action='store_true', help="run single iteration with profiler")
     parser.add_argument("--gradual", "-g", type=float,
                         help="gradually increasing the dataset. "
@@ -203,7 +204,7 @@ def main(args):
 
     loss_curve = fit(model, loss_func, optimizer, train_loader, args.epochs, device, logger,
                      start_epoch=len(checkpoints['train_learning_curve']), checkpoints=checkpoints,
-                     checkpoints_file_path=args.checkpoints, save_freq=args.save_freq)
+                     checkpoints_file_path=args.checkpoints, save_freq=args.save_freq, log_freq=args.log_freq)
 
     logger.info(f"Done training - n_epochs:{args.epochs} time:{time.time() - start_training_time} "
                 f"avg-loss:{np.mean(loss_curve)}")
