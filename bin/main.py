@@ -52,7 +52,7 @@ def get_args():
     parser.add_argument("--pre-trained", action='store_true',
                         help="indicate whether or not to use pre-trained model in case not checkpoints were given")
     parser.add_argument("--save-freq", "-s", type=int, default=10, help="frequency in minutes for saving checkpoints")
-    parser.add_argument("--log-freq", "-l", action='store_true', help="frequency in minutes for logging info")
+    parser.add_argument("--log-freq", "-l", type=int, help="frequency in minutes for logging info")
     parser.add_argument("--profile", action='store_true', help="run single iteration with profiler")
     parser.add_argument("--gradual", "-g", type=float,
                         help="gradually increasing the dataset. "
