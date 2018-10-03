@@ -80,3 +80,17 @@ class DiscriminativeLoss(torch.nn.Module):
                 + self._reg_weight*torch.stack(reg_terms).mean())
 
         return loss
+
+
+def _main():
+    cuda_available = (torch.cuda.device_count() > 0)
+    device = torch.device('cuda') if cuda_available else torch.device('cpu')
+    x = torch.rand([64, 5, 60, 80], dtype=torch.float32).to(device)
+    y = torch.randint(0, 10, [64, 60, 80], dtype=torch.uint8).to(device)
+    criterion = DiscriminativeLoss()
+    loss_value = criterion(x, y)
+    print(loss_value)
+
+
+if __name__ == '__main__':
+    _main()
