@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import time
+import itertools
 from deepc.run.checkpoints import save_checkpoints, update_checkpoints
 
 
@@ -10,7 +11,8 @@ def fit(model, criterion, optimizer, data_loader, n_epochs, device=torch.device(
     t = 0
     avg_sampling_time = avg_pred_time = avg_loss_time = avg_backward_time = 0.0
     learning_curve = []
-    for epoch_idx in range(n_epochs):
+    epochs_range = itertools.count() if n_epochs == float('inf') else range(n_epochs)
+    for epoch_idx in epochs_range:
         epoch_losses = []
         start_time = time.time()
         for sample in data_loader:
