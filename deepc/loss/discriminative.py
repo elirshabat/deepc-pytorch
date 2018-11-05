@@ -38,57 +38,63 @@ class DiscriminativeLoss(torch.nn.Module):
         :param labels: ground truth of the clusters
         :return: the loss (scalar value)
         """
+        # Data info
         batch_size, d, h, w = data.shape
-        var_terms, dist_terms, reg_terms = [], [], []
-
+        device = data.device
         delta_reg = self._delta_reg if self._delta_reg is not None else np.sqrt(d)
 
+        # Tensor of size (batch_size x d x n_points)
+        data = data.view(data.shape[0], data.shape[1], -1)
+
+        # Tensor of size (batch_size x n_points)
+        labels = labels.view(labels.shape[0], -1)
+
+        # Create cluster indicators
+        c_indicators_list = []
         for batch_index in range(batch_size):
-            # Compute batch information:
-            X, L = data[batch_index, :, :, :].view(d, -1).permute(1, 0), labels[batch_index, :, :].view(-1)
-            cluster_ids = L.unique()
-            n_clusters = len(cluster_ids)
+            b_labels = labels[batch_index, :]
+            b_cluster_ids = b_labels.unique()
+            b_n_clusters = len(b_cluster_ids)
+            b_c_indicators = torch.stack([b_labels == b_cluster_ids[c_index] for c_index in range(b_n_clusters)])
+            c_indicators_list.append(b_c_indicators)
+        clusters_dim = max([ci.shape[0] for ci in c_indicators_list])
+        c_indicators_list_padded = [
+            torch.cat([ci, torch.zeros([clusters_dim - ci.shape[0], ci.shape[1]], dtype=torch.uint8, device=device)],
+                      dim=0) for ci in c_indicators_list]
 
-            # Handle the case of single instance (loss should be 0)
-            if n_clusters <= 1:
-                var_terms.append(torch.tensor(0, device=data.device, dtype=torch.float))
-                dist_terms.append(torch.tensor(0, device=data.device, dtype=torch.float))
-                reg_terms.append(torch.tensor(0, device=data.device, dtype=torch.float))
-            # Handle the case of more than one instance
-            else:
-                # Compute the point-cluster indicator (n_clusters x n_points)
-                c_indicators = torch.stack([L == cluster_ids[c_index]
-                                            for c_index in range(n_clusters)]).type(torch.float32)
-                c_sizes = c_indicators.sum(1)
+        # Tensor of size (batch_size x clusters_dim x n_points)
+        c_indicators = torch.stack(c_indicators_list_padded).type(torch.float32)
+        c_sizes = c_indicators.sum(2)
+        real_cluster = (c_sizes != 0).type(torch.float32)
+        dummy_cluster = (c_sizes == 0).type(torch.float32)
+        n_clusters = real_cluster.sum(1)
+        cluster_pairs = (n_clusters * (n_clusters - 1)) / 2
+        one_over_c_sizes = (c_sizes != 0).type(torch.float32) / (c_sizes + (c_sizes == 0).type(torch.float32))
 
-                # Compute the centers of the clusters (n_clusters x n_dims)
-                centers_tensor = torch.matmul(c_indicators, X) / c_sizes.unsqueeze(1)
+        # Compute the centers tensor
+        centers = (data.unsqueeze(1) * c_indicators.unsqueeze(2)).sum(3) * one_over_c_sizes.unsqueeze(2)
 
-                # Compute the variance term of single example out of batch of examples
-                distance_from_centers = (X.unsqueeze(0) - centers_tensor.unsqueeze(1)).norm(dim=2)
-                distance_from_center_errors = (distance_from_centers - self._delta_var).clamp(0) ** 2
-                batch_var_terms = (c_indicators * distance_from_center_errors).sum(1) / c_sizes
-                var_term = batch_var_terms.mean()
+        # Variance term
+        distance_from_centers = (data.permute([0, 2, 1]).unsqueeze(1) - centers.unsqueeze(2)).norm(dim=3)
+        distance_from_center_errors = (distance_from_centers - self._delta_var).clamp(0) ** 2
+        var_terms = (c_indicators * distance_from_center_errors).sum(2) * one_over_c_sizes
+        var_term = (var_terms.sum(1) / n_clusters).mean()
 
-                # Compute the distance term of single example out of batch of examples
-                dist_matrix = (centers_tensor.unsqueeze(0) - centers_tensor.unsqueeze(1)).norm(dim=2)
-                dist_cost_matrix = ((self._delta_dist - (
-                            dist_matrix + torch.eye(n_clusters, device=data.device) * self._delta_dist)).clamp(0) ** 2)
-                dist_term = dist_cost_matrix.sum() / (n_clusters * (n_clusters - 1))
+        # Distance term
+        dist_matrix = (centers.unsqueeze(1) - centers.unsqueeze(2)).norm(dim=3)
 
-                # Compute the regularization term of single example out of batch of examples
-                reg_term = ((centers_tensor.norm(dim=1) - delta_reg).clamp(0) ** 2).mean()
+        dist_cost_matrix = (self._delta_dist - (dist_matrix
+                                                + torch.eye(clusters_dim, device=data.device) * self._delta_dist
+                                                + dummy_cluster.unsqueeze(1) * self._delta_dist
+                                                + dummy_cluster.unsqueeze(2) * self._delta_dist)).clamp(0) ** 2
+        # dist_term = (dist_cost_matrix.sum() / 2) / cluster_pairs
+        dist_term = ((dist_cost_matrix.sum(2).sum(1) / 2) / cluster_pairs).mean()
 
-                # Save the computed terms for later use
-                var_terms.append(var_term)
-                dist_terms.append(dist_term)
-                reg_terms.append(reg_term)
+        # Regularization term
+        reg_term = (((centers.norm(dim=2) - delta_reg).clamp(0) ** 2).sum(1) / n_clusters).mean()
 
-        loss = (self._var_weight * torch.stack(var_terms).mean()
-                + self._dist_weight * torch.stack(dist_terms).mean()
-                + self._reg_weight * torch.stack(reg_terms).mean())
-
-        return loss
+        # Final value
+        return self._var_weight * var_term + self._dist_weight * dist_term + self._reg_weight * reg_term
 
 
 def _main():
