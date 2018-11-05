@@ -3,8 +3,30 @@ import numpy as np
 from sklearn.cluster import KMeans
 
 
+def get_image_metrics(dataset, num_workers):
+    data_loader = DataLoader(dataset, shuffle=False, num_workers=num_workers)
+    mean_img = np.zeros(dataset[0]['image'].shape, dtype=np.float64)
+    var_img = np.zeros(dataset[0]['image'].shape, dtype=np.float64)
+    n = 0.0
+    for s in data_loader:
+        n += 1.0
+        mean_img = (1.0/n)*((n - 1)*mean_img + s['image'].numpy())
+    n = 0.0
+    for s in data_loader:
+        n += 1.0
+        var_img = (1.0/n)*((n - 1)*var_img + (s['image'].numpy() - mean_img)**2)
+    return mean_img, var_img
+
+
 def calc_dataset_metrics(dataset, num_workers=0):
     data_loader = DataLoader(dataset, shuffle=False, num_workers=num_workers)
+
+    mean_img, var_img = get_image_metrics(dataset, num_workers)
+    image_metrics = {
+        'mean': mean_img,
+        'var': var_img
+    }
+
     num_instances = [len(sample['labels'].unique()) for sample in data_loader]
     np_num_instances = np.sort(np.array(num_instances))
 
@@ -16,7 +38,7 @@ def calc_dataset_metrics(dataset, num_workers=0):
     instance_metrics['median'] = np_num_instances[len(np_num_instances)//2]
     instance_metrics['median095'] = np_num_instances[int(len(np_num_instances)*0.95)]
 
-    return instance_metrics
+    return instance_metrics, image_metrics
 
 
 def kmeans(x, labels):
