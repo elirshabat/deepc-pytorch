@@ -39,7 +39,7 @@ class DiscriminativeLoss(torch.nn.Module):
         :return: the loss (scalar value)
         """
         # Data info
-        batch_size, d, h, w = data.shape
+        batch_size, d = data.shape[0], data.shape[1]
         device = data.device
         delta_reg = self._delta_reg if self._delta_reg is not None else np.sqrt(d)
 

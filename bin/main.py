@@ -20,7 +20,7 @@ sys.path.append(repo_dir)
 
 from deepc.modules.resnet import ResnetMIS
 from deepc.datasets.coco import CocoDataset
-from deepc.datasets import augmentations, LimitedDataset
+from deepc.datasets import augmentations, LimitedDataset, PrefetchedDataset
 from deepc.loss.discriminative import DiscriminativeLoss
 from deepc.run.fit import fit
 from deepc.run.checkpoints import load_checkpoints, create_checkpoints, show_checkpoints, update_checkpoints
@@ -54,6 +54,7 @@ def get_args():
     parser.add_argument("--log-freq", "-l", type=int, help="frequency in minutes for logging info")
     parser.add_argument("--profile", action='store_true', help="run single iteration with profiler")
     parser.add_argument("--dataset-limit", "--dl", type=int, help="limit the size of the dataset")
+    parser.add_argument("--prefetch", action='store_true', help="load all dataset to ram upon initialization")
     return parser.parse_args()
 
 
@@ -76,7 +77,7 @@ def create_logger(name, level, arch):
     return local_logger
 
 
-def create_dataset(data_dir, config_file, resize=None, len_limit=None):
+def create_dataset(data_dir, config_file, resize=None, len_limit=None, prefetch=False):
     """
     Create data-set.
     :param data_dir: Directory with data
@@ -92,6 +93,8 @@ def create_dataset(data_dir, config_file, resize=None, len_limit=None):
     train_set = CocoDataset(config_file, data_dir, transform=transforms.Compose(dataset_transforms))
     if len_limit:
         train_set = LimitedDataset(train_set, len_limit)
+    if prefetch:
+        train_set = PrefetchedDataset(train_set)
     return train_set
 
 
@@ -180,7 +183,8 @@ def main(args):
     train_set = create_dataset(paths[f"{dataset_name}_train_data"],
                                paths[f"{dataset_name}_train_config"],
                                resize=resize,
-                               len_limit=checkpoints['dataset_limit'])
+                               len_limit=checkpoints['dataset_limit'],
+                               prefetch=args.prefetch)
 
     # Train data loader:
     train_loader = DataLoader(train_set, shuffle=True, num_workers=args.num_workers,
