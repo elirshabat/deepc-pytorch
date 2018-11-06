@@ -6,7 +6,7 @@ class PrefetchedDataset(Dataset):
     def __init__(self, origin):
         super().__init__()
         self._origin = origin
-        self._data = [s for s in origin]
+        self._data = [origin.__getitem__(i) for i in range(len(origin))]
 
     def __getitem__(self, index):
         return self._data[index]
